@@ -93,11 +93,12 @@ def fig3_uncertainty_vs_error(u: np.ndarray, E: np.ndarray, uname: str, out: Pat
 
 
 def fig4_predicted_vs_actual(pred: np.ndarray, y: np.ndarray, out: Path,
-                             extra: dict[str, np.ndarray] | None = None):
+                             extra: dict[str, np.ndarray] | None = None,
+                             main_label: str = "$g_\\phi$"):
     """THE headline figure: predicted RIH vs actual RIH, per state."""
     ncol = 1 + (len(extra) if extra else 0)
     fig, axes = plt.subplots(1, ncol, figsize=(3.1 * ncol, 3.0), squeeze=False)
-    panels = [("$g_\\phi$ (full)", pred)] + list((extra or {}).items())
+    panels = [(main_label, pred)] + list((extra or {}).items())
     for ax, (name, p) in zip(axes[0], panels):
         jitter = np.random.default_rng(0).uniform(-0.35, 0.35, len(y))
         ax.scatter(p, y + jitter, s=3, alpha=0.16, color=C["main"], edgecolors="none")

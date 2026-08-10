@@ -49,27 +49,50 @@ def prepare():
             "licenses": [{"name": "CC0-1.0"}]}
     (src / "dataset-metadata.json").write_text(json.dumps(meta, indent=2))
 
-    existing = _run(["kaggle", "datasets", "list", "-m", "-s", DATASET_SLUG], check=False)
-    if DATASET_SLUG in existing.stdout:
-        _run(["kaggle", "datasets", "version", "-p", str(src), "-m", "update", "-d"])
+    existing = _run(["kaggle", "datasets", "files", f"{user}/{DATASET_SLUG}"], check=False)
+    if existing.returncode == 0 and "PREREGISTRATION" in existing.stdout:
+        _run(["kaggle", "datasets", "version", "-p", str(src), "-m", "update", "-r", "tar"])
     else:
-        _run(["kaggle", "datasets", "create", "-p", str(src), "-d"])
+        _run(["kaggle", "datasets", "create", "-p", str(src), "-r", "tar"])
     print("dataset ready; wait ~1 min for Kaggle to finish processing before push")
+
+
+def _embedded_payload() -> str:
+    """tar.gz the source tree and base64 it, so the kernel is fully self-contained.
+
+    Embedding avoids depending on Kaggle's dataset mount, which silently failed to appear
+    at /kaggle/input/<slug> even with a 'ready' dataset and correct dataset_sources.
+    """
+    import base64
+    import io
+    import tarfile
+
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tf:
+        for d in ["src", "configs", "scripts"]:
+            tf.add(ROOT / d, arcname=d,
+                   filter=lambda ti: None if ("__pycache__" in ti.name or
+                                              ti.name.endswith(".pyc")) else ti)
+    return base64.b64encode(buf.getvalue()).decode()
 
 
 def push(config="main", seeds=(0, 1, 2)):
     user = _user()
     kdir = STAGE / "kernel"
     kdir.mkdir(parents=True, exist_ok=True)
-    entry = f'''# Auto-generated Kaggle entry point (RIH experiment)
-import os, subprocess, sys, shutil, json, time
+    payload = _embedded_payload()
+    print(f"embedded source payload: {len(payload)/1024:.0f} KB")
+    entry = f'''# Auto-generated Kaggle entry point (RIH experiment) -- source embedded inline
+import os, subprocess, sys, shutil, json, time, base64, io, tarfile
 subprocess.run([sys.executable, "-m", "pip", "install", "-q",
                 "minigrid==3.1.0", "gymnasium"], check=False)
-SRC = "/kaggle/input/{DATASET_SLUG}"
 WORK = "/kaggle/working/world_model"
 os.makedirs(WORK, exist_ok=True)
-for d in ["src", "configs", "scripts"]:
-    shutil.copytree(os.path.join(SRC, d), os.path.join(WORK, d), dirs_exist_ok=True)
+PAYLOAD = "{payload}"
+with tarfile.open(fileobj=io.BytesIO(base64.b64decode(PAYLOAD)), mode="r:gz") as tf:
+    tf.extractall(WORK)
+assert os.path.isdir(os.path.join(WORK, "src")), os.listdir(WORK)
+print("unpacked:", sorted(os.listdir(WORK)))
 for d in ["results", "checkpoints", "experiments", "figures", "logs"]:
     os.makedirs(os.path.join(WORK, d), exist_ok=True)
 os.chdir(WORK)
@@ -80,6 +103,16 @@ if torch.cuda.is_available():
     p = torch.cuda.get_device_properties(0)
     print("GPU", p.name, round(p.total_memory/1024**3, 2), "GB", "cc", f"{{p.major}}.{{p.minor}}")
     print("CUDA runtime", torch.version.cuda)
+    # Kaggle may allocate a Pascal P100 (sm_60); modern torch wheels ship sm_70+ only.
+    # Install a Pascal-capable build once, then re-exec.
+    if (p.major, p.minor) < (7, 0) and not os.environ.get("RIH_TORCH_PATCHED"):
+        print("GPU capability below torch support: installing Pascal-compatible torch",
+              flush=True)
+        subprocess.run([sys.executable, "-m", "pip", "install", "-q",
+                        "torch==2.5.1", "--index-url",
+                        "https://download.pytorch.org/whl/cu121"], check=False)
+        os.environ["RIH_TORCH_PATCHED"] = "1"
+        os.execv(sys.executable, [sys.executable] + sys.argv)
 
 t0 = time.time()
 for s in {list(seeds)}:
@@ -103,7 +136,7 @@ print("total runtime", time.time() - t0, "s")
         "is_private": True,
         "enable_gpu": True,
         "enable_internet": True,
-        "dataset_sources": [f"{user}/{DATASET_SLUG}"],
+        "dataset_sources": [],
         "competition_sources": [],
         "kernel_sources": [],
     }

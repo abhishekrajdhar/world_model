@@ -1,0 +1,18 @@
+[23:14:15] config=main device=mps seeds=(0, 1, 2)
+[23:14:15] collecting A_wmtrain (A, seeds 0-3000)
+[23:14:44]   A_wmtrain: 3000 episodes, 360000 steps
+[23:14:44] collecting A_gtrain (A, seeds 3000-4200)
+[23:14:56]   A_gtrain: 1200 episodes, 144000 steps
+[23:14:56] collecting A_val (A, seeds 4200-4800)
+[23:15:01]   A_val: 600 episodes, 72000 steps
+[23:15:01] collecting A_test (A, seeds 4800-5400)
+[23:15:07]   A_test: 600 episodes, 72000 steps
+[23:15:07] collecting B_test (B, seeds 100000-100600)
+[23:15:15]   B_test: 600 episodes, 72000 steps
+[23:15:15] collecting C_test (C, seeds 100000-100600)
+[23:15:21]   C_test: 600 episodes, 71817 steps
+[23:15:21] collecting D_test (D, seeds 100000-100600)
+[23:15:36]   D_test: 600 episodes, 72000 steps
+[23:15:36] === repeat seed 0 ===
+[23:15:36]   training member 0/5 (seed 0)
+  [seed 0] step 1500/6000 train 2.6211 val 2.8088 moved_acc(open-loop) 0.832 kl 1.087 (218s)

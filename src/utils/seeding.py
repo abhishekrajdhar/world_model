@@ -24,8 +24,22 @@ def set_seed(seed: int, deterministic: bool = True) -> None:
         torch.backends.cudnn.benchmark = False
 
 
+def cuda_usable() -> bool:
+    """`torch.cuda.is_available()` is not sufficient: Kaggle sometimes allocates a Pascal
+    P100 (sm_60) while the preinstalled torch only ships sm_70+ kernels, so every launch
+    fails with cudaErrorNoKernelImageForDevice. Verify with a real kernel launch."""
+    if not torch.cuda.is_available():
+        return False
+    try:
+        (torch.zeros(8, 8, device="cuda") @ torch.zeros(8, 8, device="cuda")).sum().item()
+        return True
+    except Exception as e:  # noqa: BLE001
+        print(f"[warn] CUDA present but unusable ({type(e).__name__}: {e}); falling back")
+        return False
+
+
 def get_device() -> torch.device:
-    if torch.cuda.is_available():
+    if cuda_usable():
         return torch.device("cuda")
     if torch.backends.mps.is_available():
         return torch.device("mps")

@@ -20,10 +20,26 @@ import numpy as np
 import torch
 
 from src.data.dataset import gather
-from src.envs.configs import ACTIONS, N_ACTIONS, make_env
+from src.envs.configs import ACTIONS, A_FORWARD, N_ACTIONS, make_env
 from src.horizon.rih import CONTEXT, H_MAX, rollout
 from src.models.world_model import integrate_displacement
 from src.uncertainty.signals import extract_features
+
+
+def _bfs_distances(passable: np.ndarray, start: tuple[int, int]) -> dict:
+    """4-connected shortest-path distance from `start` over passable cells."""
+    from collections import deque
+    W, H = passable.shape
+    dist = {start: 0}
+    q = deque([start])
+    while q:
+        x, y = q.popleft()
+        for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+            if 0 <= nx < W and 0 <= ny < H and passable[nx, ny] and (nx, ny) not in dist:
+                dist[(nx, ny)] = dist[(x, y)] + 1
+                q.append((nx, ny))
+    dist.pop(start, None)
+    return dist
 
 
 class RollingWindow:
@@ -54,12 +70,29 @@ class RollingWindow:
         return out
 
 
+def sample_actions(rng, n, H, p_forward=0.6):
+    """Sample candidate sequences from the SAME forward-biased distribution used to collect
+    training data. Uniform sampling would push the world model (and g_phi, which was fitted
+    under the collection distribution) off-distribution, confounding the comparison."""
+    r = rng.random((n, H))
+    a = np.full((n, H), A_FORWARD, dtype=np.int64)
+    rest = (1 - p_forward)
+    a[r >= p_forward] = 0
+    turn = (r >= p_forward) & (r < p_forward + rest * 0.42)
+    right = (r >= p_forward + rest * 0.42) & (r < p_forward + rest * 0.84)
+    other = r >= p_forward + rest * 0.84
+    a[turn] = 0
+    a[right] = 1
+    a[other] = rng.integers(3, N_ACTIONS, size=int(other.sum()))
+    a[r < p_forward] = A_FORWARD
+    return a
+
+
 @torch.no_grad()
 def _best_action(models, win_batch, target_disp, horizon, n_samples, rng, device):
     """Random-shooting: sample action sequences, imagine, score by closest approach."""
     H = int(horizon)
-    acts = torch.as_tensor(
-        rng.integers(0, N_ACTIONS, size=(n_samples, H)), dtype=torch.long, device=device)
+    acts = torch.as_tensor(sample_actions(rng, n_samples, H), dtype=torch.long, device=device)
     big = {k: v.expand(n_samples, *v.shape[1:]).contiguous() for k, v in win_batch.items()}
     r = rollout(models, big, CONTEXT, H, actions=acts, need_truth=False)
     disp = r["disp_ens"].float()                                   # (N,H,2)
@@ -79,17 +112,19 @@ def run_episode(models, env_cfg, layout_seed, horizon_spec, n_samples=64, budget
     u = env.unwrapped
     rng = np.random.default_rng(rng_seed)
 
-    # pick a reachable target 6-12 cells away (BFS over free cells)
+    # Pick a target that REQUIRES A DETOUR: shortest-path distance must exceed the Manhattan
+    # distance by >= 4. Greedy one-step-lookahead cannot solve these, so planning depth
+    # actually matters -- without this the task is myopic and no horizon trade-off exists.
     from src.data.policy import _grid_masks
     passable = _grid_masks(env)
-    free = np.argwhere(passable)
     start = np.array(u.agent_pos, dtype=np.int64)
-    d = np.abs(free - start).sum(1)
-    cand = free[(d >= 6) & (d <= 12)]
-    if len(cand) == 0:
+    dist = _bfs_distances(passable, tuple(start))
+    cand = [(c, d) for c, d in dist.items()
+            if 8 <= d <= 22 and d - (abs(c[0] - start[0]) + abs(c[1] - start[1])) >= 4]
+    if not cand:
         env.close()
         return None
-    target = cand[rng.integers(len(cand))]
+    target = np.array(cand[rng.integers(len(cand))][0], dtype=np.int64)
 
     win = RollingWindow()
     prev_pos = start.copy()
@@ -120,6 +155,9 @@ def run_episode(models, env_cfg, layout_seed, horizon_spec, n_samples=64, budget
             wb = win.batch(device, pad_to=CONTEXT + H_MAX + 1)
             if horizon_spec == "adaptive":
                 r = rollout(models, wb, CONTEXT, H_MAX, need_truth=False)
+                # Charge adaptive for estimating its own horizon: this probe rollout costs
+                # K * H_MAX imagined states. Ignoring it would flatter the adaptive arm.
+                imagined_total += len(models) * H_MAX
                 X, names, _ = extract_features(models, wb, r, CONTEXT, H_MAX)
                 # the planner needs the same extra column the analysis appended
                 if cols is not None and X.shape[1] < max(cols) + 1:

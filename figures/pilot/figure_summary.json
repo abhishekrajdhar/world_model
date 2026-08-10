@@ -1,0 +1,15 @@
+{
+  "primary_variant": "uncertainty_only",
+  "failure_stats": {
+    "n_overconfident_gt5": 182,
+    "n_underconfident_lt-5": 250,
+    "frac_overconfident_gt5": 0.19675675675675675,
+    "frac_underconfident_lt-5": 0.2702702702702703
+  },
+  "calibration_ece": {
+    "3": 0.1316408113264672,
+    "5": 0.12546322207193117,
+    "10": 0.05487464487552643,
+    "20": 0.04616298276116911
+  }
+}

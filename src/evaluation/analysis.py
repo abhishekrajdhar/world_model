@@ -202,8 +202,10 @@ def run_analysis(feat_path: Path, groups_map: dict, out_dir: Path, seed: int = 0
     results["ood"] = ood
 
     # ---------- predictions for figures ----------
+    sig_cols = {f"sig__{lab}": S["A_test"]["X"][:, col[f]]
+                for lab, f in SCALAR_SIGNALS.items() if f in col}
     np.savez_compressed(out_dir / f"predictions_seed{seed}.npz",
-                        y_test=y_te, groups_test=g_te, E_test=S["A_test"]["E"],
+                        y_test=y_te, groups_test=g_te, E_test=S["A_test"]["E"], **sig_cols,
                         **{f"pred__{k}": v for k, v in all_preds.items()},
                         **{f"ceil__{k}": v for k, v in ceiling.items()},
                         **{f"ood__{k}__y": S[k]["y"] for k in ["B_test", "C_test", "D_test"]},

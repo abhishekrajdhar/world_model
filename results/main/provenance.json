@@ -1,0 +1,60 @@
+{
+  "git_commit": "05cf01407c4ec87b4da5c38e1579b9857c1de936",
+  "python": "3.12.12",
+  "platform": "macOS-26.6.1-arm64-arm-64bit",
+  "torch": "2.13.0",
+  "numpy": "2.5.2",
+  "gymnasium": "1.3.0",
+  "minigrid": "3.1.0",
+  "gpu": {
+    "cuda": false,
+    "device": "mps"
+  },
+  "config": {
+    "name": "main",
+    "wm_train_seeds": [
+      0,
+      3000
+    ],
+    "g_train_seeds": [
+      3000,
+      4200
+    ],
+    "val_seeds": [
+      4200,
+      4800
+    ],
+    "test_seeds": [
+      4800,
+      5400
+    ],
+    "ood_seeds": [
+      100000,
+      100600
+    ],
+    "steps_per_episode": 120,
+    "policy_epsilon": 0.3,
+    "ensemble_k": 5,
+    "wm_steps": 6000,
+    "wm_batch": 64,
+    "wm_seq_len": 50,
+    "wm_lr": 0.0003,
+    "deter": 512,
+    "stoch": 48,
+    "hidden": 512,
+    "obs_embed": 384,
+    "anchor_stride": 4,
+    "max_anchors_per_split": 40000,
+    "eval_batch": 512,
+    "g_epochs": 60,
+    "g_hidden": 256,
+    "g_depth": 2,
+    "g_lr": 0.001,
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "n_boot": 2000
+  }
+}
