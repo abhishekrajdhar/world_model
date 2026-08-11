@@ -38,14 +38,19 @@ def fmt(m, k="mae"):
 
 
 def verdict(per_seed: list[dict]) -> tuple[str, list[str]]:
-    """Apply the frozen decision rules from PREREGISTRATION.md sec. 11."""
+    """Apply the frozen decision rules from PREREGISTRATION.md sec. 11.
+
+    Sign convention: paired_diff_ci is called as (a_pred=g_phi, b_pred=baseline), so it
+    reports MAE(baseline) - MAE(g_phi). A **positive** delta whose CI excludes 0 means
+    g_phi has the lower error.
+    """
     notes = []
-    # (a) beats constant, non-overlapping CI on the paired difference
+    # (a) beats constant, CI on the paired difference excluding 0
     d_const = [r["decisions"]["vs_constant"] for r in per_seed]
-    a_ok = all(d["hi"] < 0 for d in d_const)   # negative delta = lower MAE = better
+    a_ok = all(d["lo"] > 0 for d in d_const)
     # (b) beats the best optimistic monotone ceiling
     d_ceil = [r["decisions"]["vs_best_ceiling"] for r in per_seed]
-    b_ok = all(d["hi"] < 0 for d in d_ceil)
+    b_ok = all(d["lo"] > 0 for d in d_ceil)
     # (c) spearman > 0.5 with CI excluding 0.3
     sp = [r["decisions"]["spearman"] for r in per_seed]
     c_ok = all(s["point"] > 0.5 and s["lo"] > 0.3 for s in sp)
@@ -53,11 +58,16 @@ def verdict(per_seed: list[dict]) -> tuple[str, list[str]]:
     degen = any(r["degeneracy"]["A_val"]["degenerate"] for r in per_seed)
 
     notes.append(f"(a) beats constant on every seed: {a_ok} "
-                 f"(deltas {[round(d['point'],3) for d in d_const]}, "
-                 f"upper CIs {[round(d['hi'],3) for d in d_const]})")
+                 f"(MAE reduction {[round(d['point'],3) for d in d_const]}, "
+                 f"CI lower bounds {[round(d['lo'],3) for d in d_const]})")
     notes.append(f"(b) beats best Claim-A ceiling on every seed: {b_ok} "
-                 f"(deltas {[round(d['point'],3) for d in d_ceil]}, "
-                 f"upper CIs {[round(d['hi'],3) for d in d_ceil]})")
+                 f"(MAE reduction {[round(d['point'],3) for d in d_ceil]}, "
+                 f"CI lower bounds {[round(d['lo'],3) for d in d_ceil]})")
+    d_strict = [r["decisions"].get("strict_vs_best_ceiling") for r in per_seed]
+    if all(d_strict):
+        s_ok = all(d["lo"] > 0 for d in d_strict)
+        notes.append(f"(b') STRICT a-priori variant (no imagined rollout) beats the ceiling: "
+                     f"{s_ok} (MAE reduction {[round(d['point'],3) for d in d_strict]})")
     notes.append(f"(c) Spearman > 0.5 with CI lower bound > 0.3: {c_ok} "
                  f"(rho {[round(s['point'],3) for s in sp]}, "
                  f"lo {[round(s['lo'],3) for s in sp]})")
@@ -96,8 +106,10 @@ def main():
         print(f"| {k} | {v['mean']:.2f} | {v['sd']:.2f} | {v['iqr']:.1f} | "
               f"{v['ceiling_frac']:.3f} | {v['zero_frac']:.3f} | {v['degenerate']} |")
 
+    # each seed selects its own primary on validation; they can differ when variants tie
+    prims = [r["primary_variant"] for r in per_seed]
     primary = per_seed[0]["primary_variant"]
-    print(f"\nPrimary g_phi variant (selected on validation): **{primary}**")
+    print(f"\nPrimary g_phi variant (selected on validation, per seed): **{prims}**")
     print(f"Best Claim-A ceiling signal: **{per_seed[0]['best_ceiling']}**\n")
 
     # main table: mean +/- sd across seeds
@@ -141,17 +153,18 @@ def main():
     print("\n## H3: transfer under distribution shift\n")
     print("| split | actual H* | predicted H* | MAE | Spearman |")
     print("|---|---|---|---|---|")
-    print(f"| A_test (in-dist) | {d0['A_test']['mean']:.2f} | "
-          f"{np.mean([r['metrics'][f'g_{primary}']['mae']['point'] for r in per_seed]):.3f} MAE | "
-          f"- | {np.mean([r['decisions']['spearman']['point'] for r in per_seed]):.3f} |")
+    a_mae = np.mean([r["metrics"][f"g_{r['primary_variant']}"]["mae"]["point"] for r in per_seed])
+    a_rho = np.mean([r["decisions"]["spearman"]["point"] for r in per_seed])
+    print(f"| A_test (in-dist) | {d0['A_test']['mean']:.2f} | - | {a_mae:.3f} | {a_rho:.3f} |")
     for key in ["B_test", "C_test", "D_test"]:
-        v = [r["ood"][key] for r in per_seed if key in r.get("ood", {})]
-        if not v or primary not in v[0]:
+        rows_ = [(r["ood"][key], r["primary_variant"]) for r in per_seed
+                 if key in r.get("ood", {}) and r["primary_variant"] in r["ood"][key]]
+        if not rows_:
             continue
-        print(f"| {key} | {np.mean([x['H_star']['mean'] for x in v]):.2f} | "
-              f"{np.mean([x[primary]['pred_mean'] for x in v]):.2f} | "
-              f"{np.mean([x[primary]['mae']['point'] for x in v]):.3f} | "
-              f"{np.mean([x[primary]['spearman']['point'] for x in v]):.3f} |")
+        print(f"| {key} | {np.mean([x['H_star']['mean'] for x, _ in rows_]):.2f} | "
+              f"{np.mean([x[p]['pred_mean'] for x, p in rows_]):.2f} | "
+              f"{np.mean([x[p]['mae']['point'] for x, p in rows_]):.3f} | "
+              f"{np.mean([x[p]['spearman']['point'] for x, p in rows_]):.3f} |")
 
     v, notes = verdict(per_seed)
     print("\n## Pre-registered verdict\n")

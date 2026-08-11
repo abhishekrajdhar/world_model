@@ -115,15 +115,56 @@ if torch.cuda.is_available():
         os.execv(sys.executable, [sys.executable] + sys.argv)
 
 t0 = time.time()
-for s in {list(seeds)}:
-    subprocess.run([sys.executable, "scripts/run_experiment.py",
-                    "--config", "{config}", "--seed", str(s)], check=True)
-    print(f"seed {{s}} done at {{time.time()-t0:.0f}}s", flush=True)
-subprocess.run([sys.executable, "scripts/analyze.py", "--config", "{config}",
-                "--seeds", *[str(x) for x in {list(seeds)}]], check=True)
+SEEDS = {list(seeds)}
 
-# keep outputs small: ship results, drop bulky checkpoints/trajectories
+def stage(name, cmd, required):
+    """Run a stage. Optional stages must never take down the main result."""
+    print(f"\\n===== {{name}} (t+{{time.time()-t0:.0f}}s) =====", flush=True)
+    r = subprocess.run(cmd)
+    if r.returncode != 0:
+        print(f"[{{'FATAL' if required else 'WARN'}}] stage {{name}} failed", flush=True)
+        if required:
+            raise SystemExit(1)
+        return False
+    return True
+
+# --- required: train, extract features, analyse ---------------------------
+for s in SEEDS:
+    stage(f"experiment seed {{s}}",
+          [sys.executable, "scripts/run_experiment.py", "--config", "{config}",
+           "--seed", str(s)], required=True)
+stage("analyze", [sys.executable, "scripts/analyze.py", "--config", "{config}",
+                  "--seeds", *[str(x) for x in SEEDS]], required=True)
+# archive the core result immediately, before the optional stages run
+shutil.make_archive("/kaggle/working/results_core", "zip", os.path.join(WORK, "results"))
+print("core results archived at t+%.0fs" % (time.time() - t0), flush=True)
+
+# --- optional: ablation, planning, figures, report ------------------------
+stage("ablation K", [sys.executable, "scripts/run_ablation.py", "--config", "{config}",
+                     "--seed", str(SEEDS[0]), "--ks", "1", "3", "5"], required=False)
+stage("planning", [sys.executable, "scripts/run_planning.py", "--config", "{config}",
+                   "--seed", str(SEEDS[0]), "--episodes", "60", "--n-samples", "96",
+                   "--budget", "80"], required=False)
+for s in SEEDS:
+    stage(f"figures seed {{s}}", [sys.executable, "scripts/make_figures.py",
+                                 "--config", "{config}", "--seed", str(s)], required=False)
+
+print("\\n===== REPORT =====", flush=True)
+rep = subprocess.run([sys.executable, "scripts/make_report.py", "--config", "{config}"],
+                     capture_output=True, text=True)
+print(rep.stdout)
+print(rep.stderr[-2000:] if rep.stderr else "")
+open(os.path.join(WORK, "results", "REPORT.md"), "w").write(rep.stdout)
+
+# drop bulky intermediates so the downloadable output stays manageable
+import glob
+for pat in ["results/*/features_seed*.npz", "results/*/ablation_K/features_*.npz",
+            "experiments/*/*.npz"]:
+    for f in glob.glob(os.path.join(WORK, pat)):
+        os.remove(f)
+
 shutil.make_archive("/kaggle/working/results_{config}", "zip", os.path.join(WORK, "results"))
+shutil.make_archive("/kaggle/working/figures_{config}", "zip", os.path.join(WORK, "figures"))
 print("total runtime", time.time() - t0, "s")
 '''
     (kdir / "kernel_main.py").write_text(entry)

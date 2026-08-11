@@ -1,0 +1,102 @@
+{
+  "fixed_3": {
+    "n": 0,
+    "success_rate": NaN,
+    "success_se": NaN,
+    "steps_to_goal_mean": NaN,
+    "steps_se": NaN,
+    "imagined_states_mean": NaN,
+    "final_dist_mean": NaN,
+    "mean_horizon": NaN,
+    "_reached": [],
+    "_imag": [],
+    "_dist": [],
+    "wallclock_s": 0.0764780044555664
+  },
+  "fixed_5": {
+    "n": 0,
+    "success_rate": NaN,
+    "success_se": NaN,
+    "steps_to_goal_mean": NaN,
+    "steps_se": NaN,
+    "imagined_states_mean": NaN,
+    "final_dist_mean": NaN,
+    "mean_horizon": NaN,
+    "_reached": [],
+    "_imag": [],
+    "_dist": [],
+    "wallclock_s": 0.07345914840698242
+  },
+  "fixed_10": {
+    "n": 0,
+    "success_rate": NaN,
+    "success_se": NaN,
+    "steps_to_goal_mean": NaN,
+    "steps_se": NaN,
+    "imagined_states_mean": NaN,
+    "final_dist_mean": NaN,
+    "mean_horizon": NaN,
+    "_reached": [],
+    "_imag": [],
+    "_dist": [],
+    "wallclock_s": 0.07558751106262207
+  },
+  "fixed_20": {
+    "n": 0,
+    "success_rate": NaN,
+    "success_se": NaN,
+    "steps_to_goal_mean": NaN,
+    "steps_se": NaN,
+    "imagined_states_mean": NaN,
+    "final_dist_mean": NaN,
+    "mean_horizon": NaN,
+    "_reached": [],
+    "_imag": [],
+    "_dist": [],
+    "wallclock_s": 0.07345914840698242
+  },
+  "fixed_30": {
+    "n": 0,
+    "success_rate": NaN,
+    "success_se": NaN,
+    "steps_to_goal_mean": NaN,
+    "steps_se": NaN,
+    "imagined_states_mean": NaN,
+    "final_dist_mean": NaN,
+    "mean_horizon": NaN,
+    "_reached": [],
+    "_imag": [],
+    "_dist": [],
+    "wallclock_s": 0.07114958763122559
+  },
+  "adaptive": {
+    "n": 0,
+    "success_rate": NaN,
+    "success_se": NaN,
+    "steps_to_goal_mean": NaN,
+    "steps_se": NaN,
+    "imagined_states_mean": NaN,
+    "final_dist_mean": NaN,
+    "mean_horizon": NaN,
+    "_reached": [],
+    "_imag": [],
+    "_dist": [],
+    "wallclock_s": 0.07226133346557617
+  },
+  "comparison": {
+    "best_fixed": "fixed_3",
+    "success_delta": {
+      "point": NaN,
+      "lo": NaN,
+      "hi": NaN,
+      "se": NaN
+    },
+    "compute_ratio": NaN,
+    "compute_delta": {
+      "point": NaN,
+      "lo": NaN,
+      "hi": NaN,
+      "se": NaN
+    }
+  }
+}

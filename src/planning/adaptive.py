@@ -105,32 +105,13 @@ def _best_action(models, win_batch, target_disp, horizon, n_samples, rng, device
 
 @torch.no_grad()
 def run_episode(models, env_cfg, layout_seed, horizon_spec, n_samples=64, budget=80,
-                device="cpu", predictor=None, standardizer=None, cols=None, rng_seed=0):
+                device="cpu", predictor=None, standardizer=None, cols=None, rng_seed=0,
+                warmup=120):
     """One planning episode. `horizon_spec` is an int (fixed) or 'adaptive'."""
     env = make_env(env_cfg, slip_seed=rng_seed)
     obs, _ = env.reset(seed=int(layout_seed))
     u = env.unwrapped
     rng = np.random.default_rng(rng_seed)
-
-    # Pick a target that REQUIRES A DETOUR: shortest-path distance must exceed the Manhattan
-    # distance by >= 4. Greedy one-step-lookahead cannot solve these, so planning depth
-    # actually matters -- without this the task is myopic and no horizon trade-off exists.
-    from src.data.policy import _grid_masks
-    passable = _grid_masks(env)
-    start = np.array(u.agent_pos, dtype=np.int64)
-    dist = _bfs_distances(passable, tuple(start))
-    cand = [(c, d) for c, d in dist.items()
-            if 8 <= d <= 22 and d - (abs(c[0] - start[0]) + abs(c[1] - start[1])) >= 4]
-    if not cand:
-        env.close()
-        return None
-    target = np.array(cand[rng.integers(len(cand))][0], dtype=np.int64)
-
-    win = RollingWindow()
-    prev_pos = start.copy()
-    moved = 0
-    imagined_total, decisions, horizons_used = 0, 0, []
-    reached, steps = False, 0
 
     from minigrid.core.world_object import Door
 
@@ -141,6 +122,55 @@ def run_episode(models, env_cfg, layout_seed, horizon_spec, n_samples=64, budget
                 if isinstance(c, Door) and c.is_open:
                     return 1
         return 0
+
+    win = RollingWindow()
+
+    # WARM-UP. In DoorKey the door starts locked, so BFS from the start reaches only one
+    # convex room, where shortest-path distance equals Manhattan distance and no detour
+    # target exists (this produced 0/60 usable layouts in the first run). Run the scripted
+    # explorer first so the key is collected and the door opened; then both rooms are
+    # reachable and crossing the doorway is a genuine detour. It also warms the belief state.
+    from src.data.policy import ScriptedExplorer, _grid_masks
+    warm = ScriptedExplorer(seed=rng_seed, p_forward=0.6, p_script=0.9)
+    prev = np.array(u.agent_pos, dtype=np.int64)
+    moved = 0
+    for _ in range(warmup):
+        win.push(obs["image"].astype(np.int64), int(u.agent_dir), int(u.carrying is not None),
+                 doors_open(), moved, 0, np.array(u.agent_pos, dtype=np.int64))
+        obs, _, term, trunc, _ = env.step(ACTIONS[warm.act(env)])
+        cur = np.array(u.agent_pos, dtype=np.int64)
+        moved = int((cur != prev).any())
+        prev = cur
+        if term or trunc:
+            env.close()
+            return None
+        if doors_open() and win.ready():
+            break
+
+    # Pick a target that REQUIRES A DETOUR: shortest-path distance must exceed the Manhattan
+    # distance, so greedy one-step lookahead cannot solve it and planning depth matters.
+    # Tiers relax the requirement; the tier actually used is reported, never silently.
+    passable = _grid_masks(env)
+    start = np.array(u.agent_pos, dtype=np.int64)
+    dist = _bfs_distances(passable, tuple(start))
+    tier_used, cand = None, []
+    for tier, (min_detour, lo, hi) in enumerate([(6, 8, 26), (4, 8, 24), (2, 6, 20), (0, 6, 18)]):
+        cand = [(c, d) for c, d in dist.items()
+                if lo <= d <= hi
+                and d - (abs(c[0] - start[0]) + abs(c[1] - start[1])) >= min_detour]
+        if cand:
+            tier_used = tier
+            break
+    if not cand:
+        env.close()
+        return None
+    choice = cand[rng.integers(len(cand))]
+    target = np.array(choice[0], dtype=np.int64)
+    detour = int(choice[1] - (abs(target[0] - start[0]) + abs(target[1] - start[1])))
+
+    prev_pos = start.copy()
+    imagined_total, decisions, horizons_used = 0, 0, []
+    reached, steps = False, 0
 
     for t in range(budget):
         cur = np.array(u.agent_pos, dtype=np.int64)
@@ -189,4 +219,7 @@ def run_episode(models, env_cfg, layout_seed, horizon_spec, n_samples=64, budget
         "mean_horizon": float(np.mean(horizons_used)) if horizons_used else 0.0,
         "final_dist": int(np.abs(np.array(u.agent_pos) - target).sum()),
         "start_dist": int(np.abs(start - target).sum()),
+        "path_dist": int(choice[1]),
+        "detour": detour,
+        "tier": tier_used,
     }

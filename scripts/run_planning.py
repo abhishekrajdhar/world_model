@@ -33,6 +33,9 @@ def summarise(rows: list[dict]) -> dict:
     dist = np.array([r["final_dist"] for r in rows], float)
     return {
         "n": len(rows),
+        "mean_detour": float(np.mean([r["detour"] for r in rows])) if rows else float("nan"),
+        "mean_path_dist": float(np.mean([r["path_dist"] for r in rows])) if rows else float("nan"),
+        "tier_counts": {str(t): int(sum(1 for r in rows if r["tier"] == t)) for t in range(4)},
         "success_rate": float(ok.mean()),
         "success_se": float(ok.std() / np.sqrt(len(ok))),
         "steps_to_goal_mean": float(steps.mean()),
@@ -103,7 +106,9 @@ def main():
         print(f"  {key:12s} success {out[key]['success_rate']:.3f} "
               f"steps {out[key]['steps_to_goal_mean']:.1f} "
               f"imag/decision {out[key]['imagined_states_mean']:.0f} "
-              f"H {out[key]['mean_horizon']:.1f} ({out[key]['wallclock_s']:.0f}s)", flush=True)
+              f"H {out[key]['mean_horizon']:.1f} "
+              f"detour {out[key]['mean_detour']:.1f} path {out[key]['mean_path_dist']:.1f} "
+              f"tiers {out[key]['tier_counts']} ({out[key]['wallclock_s']:.0f}s)", flush=True)
 
     # paired comparison: adaptive vs the best fixed arm (best by success rate)
     best_fixed = max((k for k in out if k.startswith("fixed_")),

@@ -1,0 +1,29 @@
+{
+  "1": {
+    "primary": "no_latent",
+    "mae": 6.908282518438189,
+    "spearman": 0.5328013511288682,
+    "constant_mae": 8.961171171171172,
+    "ceiling_mae": 8.897135935642671,
+    "best_ceiling": "predictive_entropy_1step",
+    "H_star_mean": 14.813783783783784
+  },
+  "3": {
+    "primary": "full",
+    "mae": 6.582329893170915,
+    "spearman": 0.5471178857786654,
+    "constant_mae": 8.939819819819819,
+    "ceiling_mae": 7.808916561661979,
+    "best_ceiling": "imagined_disp_spread",
+    "H_star_mean": 15.467207207207208
+  },
+  "5": {
+    "primary": "full",
+    "mae": 6.50350817949132,
+    "spearman": 0.5587045607165824,
+    "constant_mae": 9.008738738738739,
+    "ceiling_mae": 7.583326305219389,
+    "best_ceiling": "imagined_disp_spread",
+    "H_star_mean": 15.516666666666667
+  }
+}
