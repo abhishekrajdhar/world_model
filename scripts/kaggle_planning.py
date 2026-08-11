@@ -22,6 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 STAGE = ROOT / ".kaggle_stage_plan"
 DATASET_SLUG = "rih-wm-ckpt-seed0"
 KERNEL_SLUG = "rih-world-model-planning"
+FAST_SLUG = "rih-world-model-planning-fast"
 SRC = ROOT / "results" / "main_kaggle"
 
 
@@ -70,10 +71,12 @@ def _payload() -> str:
     return base64.b64encode(buf.getvalue()).decode()
 
 
-def push(seed=0):
+def push(seed=0, slug=None, episodes=60, n_samples=96, budget=80, fixed=None):
     user = _user()
     k = STAGE / "kernel"
     k.mkdir(parents=True, exist_ok=True)
+    slug = slug or KERNEL_SLUG
+    fixed_arg = (["--fixed"] + [str(x) for x in fixed]) if fixed else []
     entry = f'''# Planning-only re-run: reuses trained checkpoints, no retraining.
 import os, sys, subprocess, shutil, tarfile, base64, io, glob, time
 subprocess.run([sys.executable, "-m", "pip", "install", "-q", "minigrid==3.1.0", "gymnasium"],
@@ -120,8 +123,8 @@ if torch.cuda.is_available():
 
 t0 = time.time()
 subprocess.run([sys.executable, "scripts/run_planning.py", "--config", "main",
-                "--seed", "{seed}", "--episodes", "60", "--n-samples", "96",
-                "--budget", "80"], check=True)
+                "--seed", "{seed}", "--episodes", "{episodes}", "--n-samples", "{n_samples}",
+                "--budget", "{budget}"] + {fixed_arg}, check=True)
 subprocess.run([sys.executable, "scripts/make_figures.py", "--config", "main",
                 "--seed", "{seed}"], check=False)
 shutil.make_archive("/kaggle/working/planning_results", "zip", os.path.join(WORK, "results"))
@@ -130,7 +133,7 @@ print("done in", time.time() - t0, "s")
 '''
     (k / "kernel_main.py").write_text(entry)
     (k / "kernel-metadata.json").write_text(json.dumps({
-        "id": f"{user}/{KERNEL_SLUG}", "title": "RIH world model planning",
+        "id": f"{user}/{slug}", "title": slug.replace("-", " "),
         "code_file": "kernel_main.py", "language": "python", "kernel_type": "script",
         "is_private": True, "enable_gpu": False, "enable_internet": True,
         "dataset_sources": [f"{user}/{DATASET_SLUG}"],
@@ -139,8 +142,20 @@ print("done in", time.time() - t0, "s")
     _run(["kaggle", "kernels", "push", "-p", str(k)])
 
 
+def pushfast():
+    """Cheap parallel run: fewer episodes/samples/arms, guaranteed to finish quickly."""
+    push(slug=FAST_SLUG, episodes=20, n_samples=48, budget=60, fixed=[3, 10, 30])
+
+
 def status():
-    _run(["kaggle", "kernels", "status", f"{_user()}/{KERNEL_SLUG}"], check=False)
+    for sl in (KERNEL_SLUG, FAST_SLUG):
+        _run(["kaggle", "kernels", "status", f"{_user()}/{sl}"], check=False)
+
+
+def fetchfast():
+    out = ROOT / "results" / "planning_fast"
+    out.mkdir(parents=True, exist_ok=True)
+    _run(["kaggle", "kernels", "output", f"{_user()}/{FAST_SLUG}", "-p", str(out)], check=False)
 
 
 def fetch():
@@ -150,5 +165,5 @@ def fetch():
 
 
 if __name__ == "__main__":
-    {"prepare": prepare, "push": push, "status": status,
-     "fetch": fetch}[sys.argv[1] if len(sys.argv) > 1 else "status"]()
+    {"prepare": prepare, "push": push, "pushfast": pushfast, "status": status,
+     "fetch": fetch, "fetchfast": fetchfast}[sys.argv[1] if len(sys.argv) > 1 else "status"]()

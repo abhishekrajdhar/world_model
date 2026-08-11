@@ -91,9 +91,33 @@ adaptive arm.
 
 ### D7 — Compute platform (operational, no scientific effect)
 
-The main run was executed on Apple Silicon MPS in addition to Kaggle. Kaggle allocated a
-**Tesla P100 (sm_60)** rather than a T4; its preinstalled torch (2.10+cu128) ships sm_70+
-kernels only, so every CUDA launch failed with `cudaErrorNoKernelImageForDevice`. The kernel
-now installs a Pascal-compatible torch when capability < 7.0, and `get_device()` verifies
-CUDA with a real kernel launch before using it. Seeds, configs, splits, and code are
-identical across platforms.
+**Every reported number comes from Kaggle.** A local Apple Silicon (MPS) run was briefly
+started as a hedge while the Kaggle kernel was pending; it was terminated before producing
+any result and its partial artefacts were deleted, so nothing in this repository derives
+from it.
+
+Kaggle allocated a **Tesla P100 (sm_60)** rather than the requested T4; its preinstalled
+torch (2.10+cu128) ships sm_70+ kernels only, so every CUDA launch failed with
+`cudaErrorNoKernelImageForDevice`. The kernel now installs a Pascal-compatible torch
+(2.5.1+cu121) when capability < 7.0 and re-executes, and `get_device()` verifies CUDA with a
+real kernel launch before using it. The accelerator type cannot be selected through the
+Kaggle API, only through the notebook UI. Main run: 15 world models, 4.4 h on P100.
+
+
+---
+
+### D8 — Planning re-run and its residual limitation (AFTER the main test evaluation)
+
+The first planning attempt yielded 0/60 usable episodes (locked door => one convex room =>
+no detour targets). A warm-up phase was added so the key is collected and the door opened
+before the target is chosen, plus tiered detour thresholds.
+
+**Outcome, reported as measured:** all 60 layouts became usable, but the detour requirement
+still could not be met -- mean detour 0.1 cells, with 57/60 layouts falling through to the
+no-detour tier. The fixed-horizon frontier is therefore monotone (success falls from 0.917 at
+H=3 to 0.367 at H=30), so no interior optimum exists and H4 cannot be meaningfully tested in
+this environment. This is recorded as a weak test rather than a clean refutation.
+
+Compute note: the Kaggle GPU quota (30 h/week) was exhausted by the main run, so planning ran
+on a Kaggle CPU kernel (4 h 47 m). A parallel cheaper kernel was launched as a hedge and
+errored; it was not needed, and no result depends on it.

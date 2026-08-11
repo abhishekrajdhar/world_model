@@ -55,7 +55,10 @@ def main():
     ap.add_argument("--n-samples", type=int, default=48)
     ap.add_argument("--budget", type=int, default=60)
     ap.add_argument("--results", default=None)
+    ap.add_argument("--fixed", type=int, nargs="*", default=None,
+                    help="fixed horizons to evaluate (default 3 5 10 20 30)")
     args = ap.parse_args()
+    fixed = args.fixed if args.fixed else FIXED
 
     cfg = CONFIGS[args.config]
     device = get_device()
@@ -86,7 +89,7 @@ def main():
     layout_seeds = list(range(90000, 90000 + args.episodes))
     raw: dict[str, list] = {}
     out: dict = {}
-    for arm in [*FIXED, "adaptive"]:
+    for arm in [*fixed, "adaptive"]:
         key = f"fixed_{arm}" if arm != "adaptive" else "adaptive"
         t0 = time.time()
         raw[key] = [run_episode(

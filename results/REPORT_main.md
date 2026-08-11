@@ -96,11 +96,11 @@ Best Claim-A ceiling signal: **imagined_disp_spread**
 
 | arm | success | steps to goal | imagined states / decision | mean H |
 |---|---|---|---|---|
-| fixed_3 | nan ± nan | nan | nan | nan |
-| fixed_5 | nan ± nan | nan | nan | nan |
-| fixed_10 | nan ± nan | nan | nan | nan |
-| fixed_20 | nan ± nan | nan | nan | nan |
-| fixed_30 | nan ± nan | nan | nan | nan |
-| adaptive | nan ± nan | nan | nan | nan |
+| fixed_3 | 0.917 ± 0.036 | 28.1 | 288 | 3.0 |
+| fixed_5 | 0.933 ± 0.032 | 34.5 | 480 | 5.0 |
+| fixed_10 | 0.767 ± 0.055 | 46.3 | 960 | 10.0 |
+| fixed_20 | 0.517 ± 0.065 | 58.1 | 1920 | 20.0 |
+| fixed_30 | 0.367 ± 0.062 | 63.7 | 2880 | 30.0 |
+| adaptive | 0.517 ± 0.065 | 60.7 | 2637 | 25.9 |
 
-adaptive vs fixed_3: success delta +nan [+nan, +nan], compute ratio nanx
+adaptive vs fixed_5: success delta -0.417 [-0.550, -0.300], compute ratio 5.49x

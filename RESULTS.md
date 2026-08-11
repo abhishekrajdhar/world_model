@@ -13,7 +13,7 @@ available at time `t`, and it does so **better than any monotone function of any
 uncertainty scalar** — which is the part that goes beyond what the literature already shows.
 The result holds on all three seeds with non-overlapping bootstrap CIs.
 
-Two findings cut against the hypothesis and are, in our view, the more interesting half:
+Three findings cut against the hypothesis and are, in our view, the more interesting half:
 
 1. **The signal lives in the imagined rollout, not in the state at time `t`.** A predictor
    restricted to strictly a-priori features (belief state, one-step uncertainty, planned
@@ -23,6 +23,10 @@ Two findings cut against the hypothesis and are, in our view, the more interesti
    direction.** Out of distribution it predicts *longer* horizons while the true horizon
    collapses (config B: actual 7.8, predicted 20.0). It is most confident exactly where the
    world model is worst.
+3. **Adaptive-horizon planning is worse and more expensive** than the best fixed horizon
+   (−0.417 success at 5.49x compute). The same anti-conservative bias reappears: the planner
+   selects H ≈ 26 where 3–5 is optimal. We flag this as a *weak* test, because the task's
+   compute–performance frontier turned out to be monotone (§8.1).
 
 ## 2. Hypothesis verdict
 
@@ -32,7 +36,7 @@ Two findings cut against the hypothesis and are, in our view, the more interesti
 | **H2** — learned predictor beats the best monotone single-scalar map (Claim B) | **SUPPORTED** |
 | **H2-strict** — same, using only time-`t` features with no imagined rollout | **NOT SUPPORTED** |
 | **H3** — predicted horizon drops before catastrophic error under shift | **NOT SUPPORTED** |
-| **H4** — adaptive horizon improves planning at lower compute (Claim C) | **INCONCLUSIVE** (see §8) |
+| **H4** — adaptive horizon improves planning at lower compute (Claim C) | **NOT SUPPORTED** (weak test — see §8.1) |
 
 Overall, against the pre-registered decision rule in §11 of the protocol: **SUPPORTED**, with
 the scope restricted to in-distribution states and to predictors allowed to inspect their own
@@ -163,13 +167,39 @@ rather than a tuning failure: the predictor was never fitted on B/C/D, and nothi
 inputs tells it that the world has changed. The uncertainty signals it relies on are
 *relative* quantities calibrated to config A's difficulty distribution.
 
-**Claim C (H4)** is **inconclusive**: the first planning run produced 0/60 usable episodes
-because the detour-target constraint could not be satisfied while DoorKey's door is locked
-(only one convex room is reachable, so shortest-path = Manhattan distance). The task has been
-fixed (warm-up phase that opens the door, then tiered detour thresholds — see
-[DEVIATIONS.md](DEVIATIONS.md) D6) and is re-running. Earlier pilot evidence suggested
-performance did **not** improve with longer horizons, so we expect H4 to fail for a
-task-design reason rather than a horizon-estimation one; this will be reported as measured.
+### 8.1 Claim C (H4): adaptive planning — NOT SUPPORTED
+
+60 paired episodes per arm, identical layout and planner seeds
+([fig6](results/main_kaggle/figs/main/fig6_planning.png)):
+
+| Arm | Success | Steps to goal | Imagined states / decision | Mean H |
+|---|---|---|---|---|
+| fixed H=3 | 0.917 ± 0.036 | 28.1 | 288 | 3.0 |
+| **fixed H=5 (best)** | **0.933 ± 0.032** | 34.5 | 480 | 5.0 |
+| fixed H=10 | 0.767 ± 0.055 | 46.3 | 960 | 10.0 |
+| fixed H=20 | 0.517 ± 0.065 | 58.1 | 1920 | 20.0 |
+| fixed H=30 | 0.367 ± 0.062 | 63.7 | 2880 | 30.0 |
+| **adaptive Ĥ\*** | 0.517 ± 0.065 | 60.7 | 2637 | 25.9 |
+
+Adaptive is **worse and more expensive**: success delta −0.417 [−0.550, −0.300] versus the
+best fixed arm, at **5.49x** its compute. The pre-registered H4 criterion fails on both legs.
+
+**This is a weak test of H4, and we say so rather than claiming a result it cannot support.**
+Success decreases *monotonically* with horizon, so the compute–performance frontier has **no
+interior optimum** — there is nothing for an adaptive horizon to find. The intended fix (make
+targets require detours) did not take: mean detour is **0.1 cells** and **57/60** layouts fell
+through to the no-detour tier, so shortest-path ≈ Manhattan distance and the task stays
+myopic. Longer random-shooting plans only compound model error.
+
+The adaptive arm's specific failure is nonetheless informative: it selects **H ≈ 25.9** when
+this planner wants 3–5. `g_φ` was fitted under the data-collection distribution, and MPC
+visits a different state/action distribution, so the **same anti-conservative bias documented
+in §8 reappears** — the predictor over-estimates its horizon exactly where doing so is
+costly. H4's failure is therefore not independent of H3's; both trace to the predictor's
+uncertainty features being calibrated to one difficulty distribution.
+
+A genuine test of H4 needs a task whose fixed-horizon frontier is non-monotone (an interior
+optimum), which this environment does not provide.
 
 ## 9. Novelty assessment
 
