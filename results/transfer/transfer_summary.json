@@ -1,0 +1,18 @@
+{
+  "main": {
+    "overall": "SUPPORTED",
+    "verdicts": [
+      "SUPPORTED",
+      "SUPPORTED",
+      "SUPPORTED"
+    ]
+  },
+  "size-matched control": {
+    "overall": "SUPPORTED",
+    "verdicts": [
+      "SUPPORTED",
+      "SUPPORTED",
+      "SUPPORTED"
+    ]
+  }
+}

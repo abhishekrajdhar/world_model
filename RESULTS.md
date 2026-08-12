@@ -38,10 +38,20 @@ Three findings cut against the hypothesis and are, in our view, the more interes
 | **H3** — predicted horizon drops before catastrophic error under shift | **NOT SUPPORTED** |
 | **H4** — adaptive horizon improves planning at lower compute (Claim C) | **NOT SUPPORTED** (weak test — see §8.1) |
 | **H5** — the OOD failure is repairable by scale-free inputs / a novelty gate | **NOT SUPPORTED** (see §8.2) |
+| **H6** — exposure to diverse shifts restores cross-distribution horizon prediction | **SUPPORTED** (see §8.3) |
 
 Overall, against the pre-registered decision rule in §11 of the protocol: **SUPPORTED**, with
-the scope restricted to in-distribution states and to predictors allowed to inspect their own
-imagined rollout.
+the scope restricted to predictors allowed to inspect their own imagined rollout — and, after
+H6, no longer restricted to in-distribution states, provided `g_phi` has seen at least one
+distribution shift of the same failure family during training.
+
+**The single most important result is H6 (§8.3).** The OOD failure is *not* intrinsic: one
+shift in `g_phi`'s training set moves a never-seen config from MAE 16.77 / ρ +0.135 to
+MAE 3.58 / ρ +0.766, and survives size-matching. But transfer is organised by **failure-mode
+family** — epistemic shifts (unseen geometry) transfer to each other and not to the aleatoric
+shift (action noise). The rank-stability analysis explains why: the predictor must switch from
+a model-internal uncertainty cue that is strong in-distribution and collapses OOD, to an
+observation-geometry cue that is useless in-distribution and dominant OOD.
 
 ## 3. Main quantitative results (A-test, mean ± sd over 3 seeds)
 
@@ -259,6 +269,99 @@ model-internal uncertainty signal through a predictor fitted on one difficulty d
 does not transfer, because the signal's *rank-informativeness*, not merely its scale, is
 distribution-specific.
 
+## 8.3 H6: is simulation metacognition transferable? — SUPPORTED
+
+Pre-registered in [PREREGISTRATION_H6.md](PREREGISTRATION_H6.md); report:
+[results/REPORT_H6.md](results/REPORT_H6.md). `g_phi` is refitted on combinations of configs;
+**no world model is retrained**. Each OOD config is partitioned 60/20/20 by episode id and the
+20% test portion is evaluation-only in *every* regime, so "seen" and "unseen" cells are
+comparable. **Bold = that config was never in training.**
+
+### Predicted `H*` (actual: A 15.60, B 8.08, C 3.95, D 4.89)
+
+| regime | test A | test B | test C | test D |
+|---|---|---|---|---|
+| A (IID only) | 15.68 | **21.60** | **13.83** | **21.21** |
+| A+B | 15.46 | 7.82 | **12.08** | **5.07** |
+| A+C | 14.76 | **9.88** | 6.10 | **8.64** |
+| A+D | 15.59 | **6.89** | **12.01** | 4.54 |
+| A+B+C | 14.59 | 7.73 | 6.25 | **5.23** |
+
+### Spearman
+
+| regime | test A | test B | test C | test D |
+|---|---|---|---|---|
+| A | +0.580 | **+0.218** | **+0.213** | **+0.135** |
+| A+B | +0.584 | +0.755 | **+0.306** | **+0.771** |
+| A+C | +0.576 | **+0.461** | +0.479 | **+0.510** |
+| A+D | +0.580 | **+0.699** | **+0.311** | +0.847 |
+| A+B+C | +0.577 | +0.754 | +0.477 | **+0.766** |
+
+**Verdict: SUPPORTED**, on all three seeds, and **the size-matched control reproduces it**
+(every regime subsampled to the A-only anchor count of 22,200; `A+B+C→D` MAE 3.62, ρ +0.762).
+The gain is therefore attributable to *diversity of failure modes*, not to more training data.
+In-distribution performance is preserved in every regime (A-test MAE moves by ≤ 0.17).
+
+The critical cell is decisive: on **D, never seen in training**, `A+B+C` moves MAE from
+**16.77 → 3.58** and Spearman from **+0.135 → +0.766**, and the prediction becomes properly
+conservative (21.2 → 5.2 against a true 4.89). The anti-conservative failure of §8 is gone.
+
+### The result is not a diversity ladder — one shift is enough
+
+`A+B → D` (ρ +0.771) is **as good as** `A+B+C → D` (ρ +0.766). Adding a second shift buys
+nothing. The discontinuity is between **zero** shifts and **one**, and it saturates
+immediately. Whatever `g_phi` learns from a single shift is not shift-specific detail but
+something closer to "do not trust the in-distribution uncertainty cue blindly".
+
+### Metacognitive transferability is organised by failure-mode family
+
+The exception is systematic, and it is the most interesting part:
+
+| Held-out cell | Spearman | Restored (main / size-matched) |
+|---|---|---|
+| A+B → D | +0.771 | 3/3 · 3/3 |
+| A+D → B | +0.699 | 3/3 · 3/3 |
+| A+C → B | +0.461 | 3/3 · 3/3 |
+| A+C → D | +0.510 | 3/3 · 3/3 |
+| **A+B → C** | **+0.306** | **2/3 · 1/3** |
+| **A+D → C** | **+0.311** | **1/3 · 1/3** |
+
+**B and D transfer to each other almost perfectly; neither transfers to C.** B (unseen
+layouts) and D (long corridors) are both *epistemic* shifts — the agent's uncertainty is about
+geometry it has not seen. C is *aleatoric* — a 15% action slip, irreducible noise. Only
+training on C fixes C (+0.479).
+
+This is the **metacognitive transferability** outcome: simulation metacognition transfers
+across shifts that share a failure *mechanism*, and fails across qualitatively different ones.
+
+### Why — the rank-stability table explains it mechanically
+
+| feature | ρ_A | ρ_B | ρ_C | ρ_D | RS = Var_D[ρ] |
+|---|---|---|---|---|---|
+| `imagined_disp_spread` | **−0.455** | −0.096 | −0.179 | −0.096 | 0.0227 |
+| `free_ahead` | **+0.004** | **+0.586** | +0.024 | **+0.566** | **0.0791** |
+| `ensemble_disagreement_mean` | −0.204 | −0.194 | −0.090 | −0.039 | 0.0054 |
+| `latent_prior_std` | +0.029 | −0.009 | +0.053 | −0.057 | 0.0020 |
+
+The two rows at the top are the whole story:
+
+- `imagined_disp_spread` is the **strongest in-distribution** signal (−0.455) and collapses OOD
+  (|ρ| ≈ 0.10–0.18). `g_A` leans on it, which is exactly why it fails out of distribution.
+- `free_ahead` — how far the agent can currently *see* clear space ahead — is **useless
+  in-distribution** (+0.004) but the **strongest OOD signal by far** (+0.586 on B, +0.566 on D).
+  A predictor trained only on A has no reason to use it.
+
+Shift exposure teaches `g_phi` to switch from the model-internal uncertainty cue to the
+observation-geometry cue. And this closes the loop on C: `free_ahead` has ρ_C = **+0.024** —
+useless on C too, because C's failures are noise-driven rather than geometry-driven. **The
+feature that rescues B and D cannot rescue C**, which is precisely why the epistemic family
+transfers internally and not to the aleatoric one.
+
+Note also that no feature is both stable *and* useful: `latent_prior_std` has the lowest
+instability (RS 0.0020) but ρ ≈ 0 everywhere. There is no distribution-invariant uncertainty
+scalar here — which is why a *learned* predictor with shift exposure is needed rather than a
+better hand-chosen signal.
+
 ## 9. Novelty assessment
 
 Against the [Phase 0 audit](docs/phase0_literature.md):
@@ -280,9 +383,19 @@ Against the [Phase 0 audit](docs/phase0_literature.md):
   confirming the mechanism [Biased Dreams](https://arxiv.org/abs/2604.25416) predicted, now
   measured as a horizon-prediction error rather than an uncertainty-tracking error.
 
-Honest rating: **moderately novel**, not "potentially major". The positive result is a
-sharper version of a known idea; the negative results are the contribution most likely to
-matter.
+- **Novel and positive (H6, §8.3):** the OOD failure of uncertainty-based horizon prediction
+  is **not intrinsic** — it is a training-diversity artefact, repaired by exposure to a single
+  shift and surviving a size-matched control. The accompanying finding that transfer is
+  organised by **failure-mode family**, with a mechanistic account (the predictor must switch
+  from a model-internal cue to an observation-geometry cue, and no distribution-invariant
+  uncertainty scalar exists in our feature set), is the strongest contribution here. We have
+  not found this in the surveyed literature, which studies uncertainty transfer as a
+  calibration problem rather than a rank-informativeness one.
+
+Honest rating: **moderately novel overall**, with H6 the part most plausibly reaching
+"strongly novel". The H2 positive is a sharper version of a known idea; the H3/H4/H5
+negatives are useful but local; H6 is the result that generalises, and it is also the one
+resting on the fewest configurations (see §11).
 
 ## 10. ICML assessment
 
@@ -309,23 +422,31 @@ matter.
 
 ## 11. Next experiment (single most valuable)
 
-The previously-recommended experiment has now been **run and refuted** (§8.2): the OOD
-failure is not an input-scaling problem, because the uncertainty signals lose their
-*per-state rank-informativeness* out of distribution, not merely their scale.
+Both previously-recommended experiments have now been run: H5 refuted the input-scaling
+explanation (§8.2) and H6 established that transfer *is* achievable but is organised by
+failure-mode family (§8.3).
 
-That reframes the next question from *"can we rescale the signal?"* to **"is horizon
-prediction transferable at all, or only learnable per-distribution?"**
+The taxonomy — *epistemic* shifts (B, D) transfer to each other, the *aleatoric* shift (C)
+neither donates nor receives — is currently inferred from **three** configs, one of which is
+the sole member of its family. That is a hypothesis fitted to a 2-vs-1 split, and it is the
+weakest load-bearing claim in the project.
 
-**Proposed experiment — leave-one-shift-out training.** Train `g_φ` on **A + C** (in-domain
-plus one shift type) and evaluate on **B and D**, which it has never seen; then rotate the
-held-out shift. This distinguishes two very different worlds:
+**Proposed experiment — a falsifiable test of the failure-mode-family taxonomy.** Add two new
+configs chosen to make an advance prediction that can fail:
 
-- if training on *any* shift restores transfer, the main-run failure was a training-diversity
-  artefact and the horizon is a learnable, transferable quantity;
-- if it does not, the reliable horizon is **distribution-specific by nature** — a much
-  stronger and more negative claim, and the more interesting one for the field, since it
-  would mean every deployment of uncertainty-gated imagination needs in-situ calibration.
+- **E, epistemic**: a new layout topology (e.g. `SimpleCrossingS11N5`) — a geometric shift
+  with no added noise.
+- **F, aleatoric**: config A with **observation noise** (random symbol corruption in the
+  egocentric view) rather than action slip — a *different* aleatoric mechanism from C.
 
-It is also nearly free: features for all four configs and three seeds already exist, so it
-requires no world-model retraining and runs in minutes. It should be pre-registered with the
-same three criteria as H5, plus a requirement that the A-test result be preserved.
+Registered predictions, made before running: `A+B → E` transfers (ρ > 0.5) while `A+B → F`
+does not (ρ < 0.35); and `A+C → F` transfers despite C and F having different noise sources,
+because both are aleatoric. If instead `A+C → F` fails, the organising principle is not
+"epistemic vs aleatoric" but something narrower — most likely *which feature carries the
+signal* — and the taxonomy claim must be withdrawn.
+
+This is the right next step because it converts the most interesting result in the project
+from a post-hoc description of three configs into a **predictive** claim. It requires
+collecting two new configs and one feature-extraction pass per seed (no world-model
+retraining, since the model transfers by construction on egocentric observations), so it is
+roughly one Kaggle GPU session.

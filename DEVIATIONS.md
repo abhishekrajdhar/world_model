@@ -138,3 +138,25 @@ world-model checkpoints, splits, and seeds are unchanged.
 
 Kaggle mount note: the features dataset appeared at `/kaggle/input/datasets`, not
 `/kaggle/input/<slug>`; the kernel now searches `/kaggle/input` recursively.
+
+
+---
+
+### D10 — H6 transfer experiment (pre-registered separately)
+
+`PREREGISTRATION_H6.md` frozen before any H6 number existed. Two additions beyond the
+originally-discussed design, both made before running:
+
+1. **Size-matched control.** `A+B+C` has ~1.6x the training anchors of `A`, so a gain could
+   reflect sample size rather than diversity. Every multi-config regime is therefore also run
+   subsampled to the A-only anchor count (22,200). Both verdicts are reported; both are
+   SUPPORTED.
+2. **New train/val/test partitions for B/C/D.** The main run produced only *test* features
+   for the OOD configs. Each is now split 60/20/20 by episode id, with the 20% test portion
+   evaluation-only in every regime. Consequence: OOD test sets are ~120 episodes / ~2.2k
+   anchors, so H6's OOD numbers are NOT directly comparable to the main run's full-split OOD
+   numbers, and CIs are wider. The A-only regime is re-evaluated on the same reduced portions
+   so all comparisons within H6 are like-for-like.
+
+No world models were retrained; checkpoints, splits, seeds, features, architecture and the
+`H*` definition are unchanged from the main run.

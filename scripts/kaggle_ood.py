@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 STAGE = ROOT / ".kaggle_stage_ood"
 DATASET_SLUG = "rih-features-main"
 KERNEL_SLUG = "rih-ood-repair"
+TRANSFER_SLUG = "rih-transfer-h6"
 SRC = ROOT / "results" / "main_kaggle" / "core" / "main"
 
 
@@ -72,10 +73,12 @@ def _payload() -> str:
     return base64.b64encode(buf.getvalue()).decode()
 
 
-def push(seeds=(0, 1, 2)):
+def push(seeds=(0, 1, 2), slug=None, script="scripts/run_ood_repair.py",
+         outdir="ood_repair", report="REPORT_H5.md"):
     user = _user()
     k = STAGE / "kernel"
     k.mkdir(parents=True, exist_ok=True)
+    slug = slug or KERNEL_SLUG
     entry = f'''# H5 OOD-repair experiment (no world-model retraining required)
 import os, sys, subprocess, shutil, tarfile, base64, io, glob, time
 subprocess.run([sys.executable, "-m", "pip", "install", "-q", "minigrid==3.1.0", "gymnasium"],
@@ -112,20 +115,21 @@ if torch.cuda.is_available():
         os.execv(sys.executable, [sys.executable] + sys.argv)
 
 t0 = time.time()
-r = subprocess.run([sys.executable, "scripts/run_ood_repair.py", "--config", "main",
+r = subprocess.run([sys.executable, "{script}", "--config", "main",
                     "--seeds", *[str(x) for x in {list(seeds)}]],
                    capture_output=True, text=True)
 print(r.stdout)
 print(r.stderr[-4000:] if r.stderr else "")
-open("results/ood_repair/REPORT_H5.md", "w").write(r.stdout)
-shutil.make_archive("/kaggle/working/ood_repair", "zip", os.path.join(WORK, "results", "ood_repair"))
+os.makedirs("results/{outdir}", exist_ok=True)
+open("results/{outdir}/{report}", "w").write(r.stdout)
+shutil.make_archive("/kaggle/working/{outdir}", "zip", os.path.join(WORK, "results", "{outdir}"))
 print("done in", time.time() - t0, "s")
 if r.returncode != 0:
     raise SystemExit(r.returncode)
 '''
     (k / "kernel_main.py").write_text(entry)
     (k / "kernel-metadata.json").write_text(json.dumps({
-        "id": f"{user}/{KERNEL_SLUG}", "title": KERNEL_SLUG.replace("-", " "),
+        "id": f"{user}/{slug}", "title": slug.replace("-", " "),
         "code_file": "kernel_main.py", "language": "python", "kernel_type": "script",
         "is_private": True, "enable_gpu": True, "enable_internet": True,
         "dataset_sources": [f"{user}/{DATASET_SLUG}"],
@@ -134,8 +138,20 @@ if r.returncode != 0:
     _run(["kaggle", "kernels", "push", "-p", str(k)])
 
 
+def pushtransfer():
+    push(slug=TRANSFER_SLUG, script="scripts/run_transfer.py", outdir="transfer",
+         report="REPORT_H6.md")
+
+
 def status():
-    _run(["kaggle", "kernels", "status", f"{_user()}/{KERNEL_SLUG}"], check=False)
+    for sl in (KERNEL_SLUG, TRANSFER_SLUG):
+        _run(["kaggle", "kernels", "status", f"{_user()}/{sl}"], check=False)
+
+
+def fetchtransfer():
+    out = ROOT / "results" / "transfer_kaggle"
+    out.mkdir(parents=True, exist_ok=True)
+    _run(["kaggle", "kernels", "output", f"{_user()}/{TRANSFER_SLUG}", "-p", str(out)], check=False)
 
 
 def fetch():
@@ -145,5 +161,5 @@ def fetch():
 
 
 if __name__ == "__main__":
-    {"prepare": prepare, "push": push, "status": status,
-     "fetch": fetch}[sys.argv[1] if len(sys.argv) > 1 else "status"]()
+    {"prepare": prepare, "push": push, "pushtransfer": pushtransfer, "status": status,
+     "fetch": fetch, "fetchtransfer": fetchtransfer}[sys.argv[1] if len(sys.argv) > 1 else "status"]()
