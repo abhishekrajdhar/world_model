@@ -37,6 +37,7 @@ Three findings cut against the hypothesis and are, in our view, the more interes
 | **H2-strict** — same, using only time-`t` features with no imagined rollout | **NOT SUPPORTED** |
 | **H3** — predicted horizon drops before catastrophic error under shift | **NOT SUPPORTED** |
 | **H4** — adaptive horizon improves planning at lower compute (Claim C) | **NOT SUPPORTED** (weak test — see §8.1) |
+| **H5** — the OOD failure is repairable by scale-free inputs / a novelty gate | **NOT SUPPORTED** (see §8.2) |
 
 Overall, against the pre-registered decision rule in §11 of the protocol: **SUPPORTED**, with
 the scope restricted to in-distribution states and to predictors allowed to inspect their own
@@ -201,6 +202,63 @@ uncertainty features being calibrated to one difficulty distribution.
 A genuine test of H4 needs a task whose fixed-horizon frontier is non-monotone (an interior
 optimum), which this environment does not provide.
 
+## 8.2 H5: attempting to repair the OOD failure — NOT SUPPORTED
+
+Follow-up experiment, pre-registered blind in [PREREGISTRATION_H5.md](PREREGISTRATION_H5.md)
+and run on the precomputed features (no retraining). Report:
+[results/REPORT_H5.md](results/REPORT_H5.md).
+
+Two repairs, neither fitted on B/C/D: **R1** rank-normalises the uncertainty features
+(tests "the features are merely mis-scaled"); **R2** shrinks the prediction by a novelty gate
+`exp(-λ·max(0, ν−τ))` whose constants come from A-val by a fixed rule; **R3** is both.
+
+| Arm | A-test pred (actual 15.60) | B pred (actual 7.75) | C pred (actual 4.11) | D pred (actual 5.11) |
+|---|---|---|---|---|
+| R0 baseline | 15.68 | 21.56 | 13.59 | 21.15 |
+| R1 rank-norm | 15.87 | 20.99 | **16.08** (worse) | 21.29 |
+| R2 novelty-gated | 15.63 | 20.25 | 13.12 | 19.95 |
+| R3 combined | 15.82 | 19.78 | 15.56 | 20.12 |
+
+**Verdict: NOT SUPPORTED on all three seeds, for all three repair arms.** Criterion (1) —
+the predicted horizon must *fall* out of distribution — fails everywhere: predictions stay
+**above** the in-distribution value (≈20 vs 15.7) while the true horizon is 4–8. The gate did
+behave as designed in-distribution (15.68 → 15.63, MAE 6.394 → 6.399, criterion (3) holds),
+so the failure is not an artefact of a badly-calibrated gate; it simply never fires hard
+enough.
+
+### Why — and it is neither explanation we pre-registered
+
+The diagnostic (per-split mean, and Spearman with `H*` computed *within* each split) shows
+the two mechanisms are **mixed across features**, which is why a single fix cannot work:
+
+| Feature | A-test | B | C | D |
+|---|---|---|---|---|
+| `dispspread_mean` | 0.53 (ρ **−0.46**) | 1.09 (ρ −0.11) | 1.50 (ρ −0.20) | 1.04 (ρ −0.09) |
+| `ent_moved_mean` | 0.21 (ρ −0.40) | **0.15** (ρ −0.16) | 0.21 (ρ −0.11) | **0.15** (ρ +0.04) |
+| `trunc_h_disp` | 24.4 (ρ +0.30) | 19.8 (ρ +0.10) | 16.6 (ρ +0.20) | 20.0 (ρ +0.09) |
+| `latent_nn_dist` | 3.93 | 5.89 | 5.13 | 5.86 |
+
+1. **Ensemble disagreement moves the *right* way** (spread 0.53 → 1.0–1.5 OOD), refuting a
+   pure "attractor collapse" reading for that signal.
+2. **Predictive entropy moves the *wrong* way** — it *falls* on B and D (0.21 → 0.15) exactly
+   where the model is worst. This is the [Biased Dreams](https://arxiv.org/abs/2604.25416)
+   failure, but confined to the entropy signal rather than the ensemble.
+3. **The decisive problem is neither: every feature loses its per-state discriminative
+   power.** `dispspread`'s within-split correlation with `H*` collapses from **−0.46** to
+   −0.09…−0.20. The signal still says "things are harder here" on average, but it no longer
+   ranks *which* states will fail — which is precisely what a per-state horizon needs.
+
+That explains both failures directly. **R1 fails** because rank-normalising preserves an
+ordering that has itself become uninformative (and on C it destroys the magnitude
+information that was carrying what little signal remained, making it *worse*). **R2 fails**
+because latent novelty barely separates the distributions (3.9 vs 5.1–5.9, heavily
+overlapping), so a gate calibrated to be inert in-distribution stays nearly inert OOD.
+
+The honest conclusion: the OOD failure is **not an input-scaling problem**. Feeding a
+model-internal uncertainty signal through a predictor fitted on one difficulty distribution
+does not transfer, because the signal's *rank-informativeness*, not merely its scale, is
+distribution-specific.
+
 ## 9. Novelty assessment
 
 Against the [Phase 0 audit](docs/phase0_literature.md):
@@ -251,15 +309,23 @@ matter.
 
 ## 11. Next experiment (single most valuable)
 
-**Test whether the OOD failure is repairable by making the horizon predictor's inputs
-scale-free.** The diagnosis is that `g_φ` consumes uncertainty magnitudes calibrated to
-config A's difficulty. The concrete experiment: train `g_φ` on **rank-normalised**
-uncertainty features (per-episode or per-batch quantile transform of disagreement/entropy)
-plus an explicit novelty score (latent density under the training distribution), then
-re-evaluate on B/C/D **without refitting**. Success criterion, fixed in advance: mean `Ĥ*`
-must fall on all three OOD configs and Spearman must exceed 0.3 on at least two.
+The previously-recommended experiment has now been **run and refuted** (§8.2): the OOD
+failure is not an input-scaling problem, because the uncertainty signals lose their
+*per-state rank-informativeness* out of distribution, not merely their scale.
 
-This is the highest-value next step because the in-distribution result is already established
-and the OOD failure is what blocks every practical use of a reliability horizon — an agent
-that is confident precisely when it is wrong is worse than one with a fixed conservative
-horizon.
+That reframes the next question from *"can we rescale the signal?"* to **"is horizon
+prediction transferable at all, or only learnable per-distribution?"**
+
+**Proposed experiment — leave-one-shift-out training.** Train `g_φ` on **A + C** (in-domain
+plus one shift type) and evaluate on **B and D**, which it has never seen; then rotate the
+held-out shift. This distinguishes two very different worlds:
+
+- if training on *any* shift restores transfer, the main-run failure was a training-diversity
+  artefact and the horizon is a learnable, transferable quantity;
+- if it does not, the reliable horizon is **distribution-specific by nature** — a much
+  stronger and more negative claim, and the more interesting one for the field, since it
+  would mean every deployment of uncertainty-gated imagination needs in-situ calibration.
+
+It is also nearly free: features for all four configs and three seeds already exist, so it
+requires no world-model retraining and runs in minutes. It should be pre-registered with the
+same three criteria as H5, plus a requirement that the A-test result be preserved.

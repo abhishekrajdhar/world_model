@@ -121,3 +121,20 @@ this environment. This is recorded as a weak test rather than a clean refutation
 Compute note: the Kaggle GPU quota (30 h/week) was exhausted by the main run, so planning ran
 on a Kaggle CPU kernel (4 h 47 m). A parallel cheaper kernel was launched as a hedge and
 errored; it was not needed, and no result depends on it.
+
+
+---
+
+### D9 — H5 follow-up experiment (pre-registered separately, run after the main result)
+
+`PREREGISTRATION_H5.md` was frozen after the main run, so its *motivation* (the H3 failure)
+was known while its outcome was not. No diagnostic of the OOD feature statistics was
+inspected before freezing: an attempt to compute one locally was aborted before it ran, so
+the E1-vs-E2 prediction in that document was genuinely blind.
+
+Run on a second Kaggle account after the first exhausted its 30 h/week GPU quota. Uses only
+the features already computed in the main run, so no world model was retrained and the
+world-model checkpoints, splits, and seeds are unchanged.
+
+Kaggle mount note: the features dataset appeared at `/kaggle/input/datasets`, not
+`/kaggle/input/<slug>`; the kernel now searches `/kaggle/input` recursively.

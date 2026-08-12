@@ -1,0 +1,18 @@
+{
+  "per_seed_verdicts": [
+    "NOT SUPPORTED",
+    "NOT SUPPORTED",
+    "NOT SUPPORTED"
+  ],
+  "arms_supporting": [
+    [],
+    [],
+    []
+  ],
+  "arms_partial": [
+    [],
+    [],
+    []
+  ],
+  "overall": "NOT SUPPORTED"
+}
