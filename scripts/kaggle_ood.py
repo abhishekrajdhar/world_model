@@ -24,6 +24,7 @@ STAGE = ROOT / ".kaggle_stage_ood"
 DATASET_SLUG = "rih-features-main"
 KERNEL_SLUG = "rih-ood-repair"
 TRANSFER_SLUG = "rih-transfer-h6"
+ARCH_SLUG = "rih-cross-arch"
 SRC = ROOT / "results" / "main_kaggle" / "core" / "main"
 
 
@@ -74,7 +75,7 @@ def _payload() -> str:
 
 
 def push(seeds=(0, 1, 2), slug=None, script="scripts/run_ood_repair.py",
-         outdir="ood_repair", report="REPORT_H5.md"):
+         outdir="ood_repair", report="REPORT_H5.md", extra_args=None, need_features=True):
     user = _user()
     k = STAGE / "kernel"
     k.mkdir(parents=True, exist_ok=True)
@@ -90,18 +91,20 @@ with tarfile.open(fileobj=io.BytesIO(base64.b64decode("{_payload()}")), mode="r:
 os.chdir(WORK)
 os.makedirs("results/main", exist_ok=True)
 
-# Kaggle does not always mount at /kaggle/input/<slug>; search recursively instead.
-found = glob.glob("/kaggle/input/**/features_seed*.npz", recursive=True)
-if not found:
-    for root, dirs, files in os.walk("/kaggle/input"):
-        print("walk:", root, dirs[:5], files[:5], flush=True)
-    raise SystemExit("features dataset not attached")
-src = os.path.dirname(found[0])
-print("features found in", src, flush=True)
-for f in glob.glob(os.path.join(src, "*")):
-    if os.path.isfile(f) and (f.endswith(".npz") or f.endswith(".json")):
-        shutil.copy(f, "results/main")
-print("inputs:", sorted(os.listdir("results/main")), flush=True)
+NEED_FEATURES = {need_features}
+if NEED_FEATURES:
+    # Kaggle does not always mount at /kaggle/input/<slug>; search recursively instead.
+    found = glob.glob("/kaggle/input/**/features_seed*.npz", recursive=True)
+    if not found:
+        for root, dirs, files in os.walk("/kaggle/input"):
+            print("walk:", root, dirs[:5], files[:5], flush=True)
+        raise SystemExit("features dataset not attached")
+    src = os.path.dirname(found[0])
+    print("features found in", src, flush=True)
+    for f in glob.glob(os.path.join(src, "*")):
+        if os.path.isfile(f) and (f.endswith(".npz") or f.endswith(".json")):
+            shutil.copy(f, "results/main")
+    print("inputs:", sorted(os.listdir("results/main")), flush=True)
 
 import torch
 print("torch", torch.__version__, "cuda", torch.cuda.is_available(), flush=True)
@@ -116,7 +119,7 @@ if torch.cuda.is_available():
 
 t0 = time.time()
 r = subprocess.run([sys.executable, "{script}", "--config", "main",
-                    "--seeds", *[str(x) for x in {list(seeds)}]],
+                    "--seeds", *[str(x) for x in {list(seeds)}]] + {extra_args or []},
                    capture_output=True, text=True)
 print(r.stdout)
 print(r.stderr[-4000:] if r.stderr else "")
@@ -132,7 +135,7 @@ if r.returncode != 0:
         "id": f"{user}/{slug}", "title": slug.replace("-", " "),
         "code_file": "kernel_main.py", "language": "python", "kernel_type": "script",
         "is_private": True, "enable_gpu": True, "enable_internet": True,
-        "dataset_sources": [f"{user}/{DATASET_SLUG}"],
+        "dataset_sources": ([f"{user}/{DATASET_SLUG}"] if need_features else []),
         "competition_sources": [], "kernel_sources": [],
     }, indent=2))
     _run(["kaggle", "kernels", "push", "-p", str(k)])
@@ -143,8 +146,26 @@ def pushtransfer():
          report="REPORT_H6.md")
 
 
+def pusharchsmoke():
+    push(slug=ARCH_SLUG, script="scripts/run_cross_arch.py", outdir="cross_arch",
+         report="REPORT_H7_smoke.md", seeds=(0,), need_features=False,
+         extra_args=["--smoke", "--k", "2", "--steps", "300"])
+
+
+def pusharch():
+    push(slug=ARCH_SLUG, script="scripts/run_cross_arch.py", outdir="cross_arch",
+         report="REPORT_H7.md", seeds=(0, 1), need_features=False,
+         extra_args=["--k", "3", "--steps", "6000"])
+
+
+def fetcharch():
+    out = ROOT / "results" / "cross_arch_kaggle"
+    out.mkdir(parents=True, exist_ok=True)
+    _run(["kaggle", "kernels", "output", f"{_user()}/{ARCH_SLUG}", "-p", str(out)], check=False)
+
+
 def status():
-    for sl in (KERNEL_SLUG, TRANSFER_SLUG):
+    for sl in (KERNEL_SLUG, TRANSFER_SLUG, ARCH_SLUG):
         _run(["kaggle", "kernels", "status", f"{_user()}/{sl}"], check=False)
 
 
@@ -162,4 +183,5 @@ def fetch():
 
 if __name__ == "__main__":
     {"prepare": prepare, "push": push, "pushtransfer": pushtransfer, "status": status,
-     "fetch": fetch, "fetchtransfer": fetchtransfer}[sys.argv[1] if len(sys.argv) > 1 else "status"]()
+     "fetch": fetch, "fetchtransfer": fetchtransfer, "pusharchsmoke": pusharchsmoke,
+     "pusharch": pusharch, "fetcharch": fetcharch}[sys.argv[1] if len(sys.argv) > 1 else "status"]()

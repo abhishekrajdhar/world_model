@@ -29,10 +29,16 @@ def train_member(
     log_every: int = 500,
     ckpt_path: str | Path | None = None,
     verbose: bool = True,
+    model: torch.nn.Module | None = None,
 ) -> tuple[WorldModel, dict]:
+    """`model` lets a caller supply an alternative architecture; it only has to implement
+    `loss`, `observe` and the inference API (see src/models/transformer_wm.py)."""
     set_seed(seed)
     device = torch.device(device)
-    model = WorldModel(wm_cfg or WMConfig()).to(device)
+    if model is None:
+        model = WorldModel(wm_cfg or WMConfig()).to(device)
+    else:
+        model = model.to(device)
     opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-5)
     sampler = SequenceSampler(traj_train, seq_len, batch_size, seed=seed)
     val_sampler = SequenceSampler(traj_val, seq_len, batch_size, seed=seed + 9999)
