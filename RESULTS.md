@@ -48,9 +48,11 @@ the scope restricted to predictors allowed to inspect their own imagined rollout
 H6, no longer restricted to in-distribution states, provided `g_phi` has seen at least one
 distribution shift of the same failure family during training.
 
-**The single most important result is H6 (§8.3).** The OOD failure is *not* intrinsic: one
-shift in `g_phi`'s training set moves a never-seen config from MAE 16.77 / ρ +0.135 to
-MAE 3.58 / ρ +0.766, and survives size-matching. Transfer is **directional** (§8.6): an
+**The single most important result is H6 (§8.3).** The OOD failure is not intrinsic: exposure
+to an appropriate shifted distribution can substantially restore transfer, moving a never-seen
+config from MAE 16.77 / ρ +0.135 to MAE 3.58 / ρ +0.766. A size-matched control indicates this
+is not explained by sample count alone (it does not establish diversity as the sole cause), and
+H7 shows the effect is architecture-dependent. Transfer is **directional** (§8.6): an
 epistemic shift teaches a specific, powerful cue that only geometric shifts can use
 (epistemic→epistemic +0.73…+0.86, epistemic→aleatoric ~+0.31), while an aleatoric shift
 teaches a weaker but general lesson (aleatoric→anything +0.39…+0.54). The rank-stability
@@ -307,14 +309,15 @@ comparable. **Bold = that config was never in training.**
 
 **Verdict: SUPPORTED**, on all three seeds, and **the size-matched control reproduces it**
 (every regime subsampled to the A-only anchor count of 22,200; `A+B+C→D` MAE 3.62, ρ +0.762).
-The gain is therefore attributable to *diversity of failure modes*, not to more training data.
+The effect is therefore **not explained by sample count alone**. We do not claim diversity is
+the only causal factor.
 In-distribution performance is preserved in every regime (A-test MAE moves by ≤ 0.17).
 
 The critical cell is decisive: on **D, never seen in training**, `A+B+C` moves MAE from
 **16.77 → 3.58** and Spearman from **+0.135 → +0.766**, and the prediction becomes properly
 conservative (21.2 → 5.2 against a true 4.89). The anti-conservative failure of §8 is gone.
 
-### The result is not a diversity ladder — one shift is enough
+### The marginal value of additional shifts is small
 
 `A+B → D` (ρ +0.771) is **as good as** `A+B+C → D` (ρ +0.766). Adding a second shift buys
 nothing. The discontinuity is between **zero** shifts and **one**, and it saturates
