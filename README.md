@@ -18,9 +18,11 @@ the best *monotone function of any single uncertainty scalar* — because that w
 
 | File | What it is |
 |---|---|
-| [PREREGISTRATION.md](PREREGISTRATION.md) | Hypotheses, thresholds, splits, decision rules — **frozen before any test evaluation** |
+| [PREREGISTRATION.md](PREREGISTRATION.md) | Main protocol — **frozen before any test evaluation** |
+| `PREREGISTRATION_H5/H6/H8/H9.md` | Follow-up protocols, each frozen before its own data existed |
 | [docs/phase0_literature.md](docs/phase0_literature.md) | Literature audit and the exact novelty boundary |
-| [RESULTS.md](RESULTS.md) | Final report (generated after the main run) |
+| **[PAPER.md](PAPER.md)** | **Paper draft — start here** |
+| [RESULTS.md](RESULTS.md) | Full results: all 9 hypotheses, per-seed statistics, figures |
 | [DEVIATIONS.md](DEVIATIONS.md) | Every departure from the pre-registration, with reasons |
 
 ## The mechanism being tested
