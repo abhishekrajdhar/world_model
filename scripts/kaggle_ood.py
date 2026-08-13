@@ -28,6 +28,7 @@ ARCH_SLUG = "rih-cross-arch"
 ARCH_CKPT_SLUG = "rih-cross-arch-ckpt"
 TAX_SLUG = "rih-taxonomy-h8"
 TAX_CKPT_SLUG = "rih-wm-ckpt-main"
+ALEA_SLUG = "rih-aleatoric-h9"
 SRC = ROOT / "results" / "main_kaggle" / "core" / "main"
 
 
@@ -182,6 +183,18 @@ def pushtax():
          ckpt_dataset=TAX_CKPT_SLUG, ckpt_dest="checkpoints/main")
 
 
+def pushalea():
+    push(slug=ALEA_SLUG, script="scripts/run_aleatoric.py", outdir="aleatoric",
+         report="REPORT_H9.md", seeds=(0, 1, 2), need_features=True,
+         ckpt_dataset=TAX_CKPT_SLUG, ckpt_dest="checkpoints/main")
+
+
+def fetchalea():
+    out = ROOT / "results" / "aleatoric_kaggle"
+    out.mkdir(parents=True, exist_ok=True)
+    _run(["kaggle", "kernels", "output", f"{_user()}/{ALEA_SLUG}", "-p", str(out)], check=False)
+
+
 def fetchtax():
     out = ROOT / "results" / "taxonomy_kaggle"
     out.mkdir(parents=True, exist_ok=True)
@@ -215,4 +228,5 @@ if __name__ == "__main__":
     {"prepare": prepare, "push": push, "pushtransfer": pushtransfer, "status": status,
      "fetch": fetch, "fetchtransfer": fetchtransfer, "pusharchsmoke": pusharchsmoke,
      "pusharch": pusharch, "fetcharch": fetcharch, "pushtax": pushtax,
-     "fetchtax": fetchtax}[sys.argv[1] if len(sys.argv) > 1 else "status"]()
+     "fetchtax": fetchtax, "pushalea": pushalea,
+     "fetchalea": fetchalea}[sys.argv[1] if len(sys.argv) > 1 else "status"]()

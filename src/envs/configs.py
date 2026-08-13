@@ -28,7 +28,8 @@ class EnvConfig:
     slip: float
     description: str
     obs_noise: float = 0.0
-    family: str = "epistemic"   # taxonomy under test in H8: epistemic | aleatoric
+    action_dropout: float = 0.0
+    family: str = "epistemic"   # taxonomy under test in H8/H9: epistemic | aleatoric
 
 
 ENV_CONFIGS: dict[str, EnvConfig] = {
@@ -71,6 +72,30 @@ class ObsNoiseWrapper(gym.ObservationWrapper):
         return obs
 
 
+class ActionDropoutWrapper(gym.Wrapper):
+    """With probability `p` the requested action silently fails to execute.
+
+    Uses MiniGrid's `done` action (index 6), verified to be a true no-op that does not
+    terminate (`minigrid_env.py`: `elif action == self.actions.done: pass`). This is a
+    THIRD aleatoric mechanism, distinct from slip (which substitutes a *different* action)
+    and from observation noise (which corrupts perception, leaving dynamics intact).
+    """
+
+    DONE_ACTION = 6
+
+    def __init__(self, env, p: float, seed: int = 0):
+        super().__init__(env)
+        self.p = float(p)
+        self._rng = np.random.default_rng(seed)
+        self.last_dropped = False
+
+    def step(self, action):
+        self.last_dropped = self.p > 0.0 and self._rng.random() < self.p
+        if self.last_dropped:
+            action = self.DONE_ACTION
+        return self.env.step(action)
+
+
 class SlipWrapper(gym.Wrapper):
     """With probability `slip`, replace the requested action by a uniform random one.
 
@@ -96,6 +121,20 @@ def make_env(cfg: EnvConfig, slip_seed: int = 0):
     env = gym.make(cfg.env_id, agent_view_size=AGENT_VIEW, max_steps=MAX_STEPS)
     if cfg.slip > 0.0:
         env = SlipWrapper(env, cfg.slip, seed=slip_seed)
+    if getattr(cfg, "action_dropout", 0.0) > 0.0:
+        env = ActionDropoutWrapper(env, cfg.action_dropout, seed=slip_seed + 4242)
     if getattr(cfg, "obs_noise", 0.0) > 0.0:
         env = ObsNoiseWrapper(env, cfg.obs_noise, seed=slip_seed + 7777)
     return env
+
+
+def aleatoric_config(name: str, kind: str, p: float) -> EnvConfig:
+    """Ad-hoc config for the H9 severity ladder. `kind` is 'obs' or 'dropout'."""
+    base = ENV_CONFIGS["A"]
+    if kind == "obs":
+        return EnvConfig(name, base.env_id, 0.0, f"observation noise p={p}",
+                         obs_noise=p, family="aleatoric")
+    if kind == "dropout":
+        return EnvConfig(name, base.env_id, 0.0, f"action dropout p={p}",
+                         action_dropout=p, family="aleatoric")
+    raise ValueError(kind)
