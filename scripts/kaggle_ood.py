@@ -26,6 +26,8 @@ KERNEL_SLUG = "rih-ood-repair"
 TRANSFER_SLUG = "rih-transfer-h6"
 ARCH_SLUG = "rih-cross-arch"
 ARCH_CKPT_SLUG = "rih-cross-arch-ckpt"
+TAX_SLUG = "rih-taxonomy-h8"
+TAX_CKPT_SLUG = "rih-wm-ckpt-main"
 SRC = ROOT / "results" / "main_kaggle" / "core" / "main"
 
 
@@ -174,6 +176,18 @@ def pusharch():
          extra_args=["--k", "3", "--steps", "6000"])
 
 
+def pushtax():
+    push(slug=TAX_SLUG, script="scripts/run_taxonomy.py", outdir="taxonomy",
+         report="REPORT_H8.md", seeds=(0, 1, 2), need_features=True,
+         ckpt_dataset=TAX_CKPT_SLUG, ckpt_dest="checkpoints/main")
+
+
+def fetchtax():
+    out = ROOT / "results" / "taxonomy_kaggle"
+    out.mkdir(parents=True, exist_ok=True)
+    _run(["kaggle", "kernels", "output", f"{_user()}/{TAX_SLUG}", "-p", str(out)], check=False)
+
+
 def fetcharch():
     out = ROOT / "results" / "cross_arch_kaggle"
     out.mkdir(parents=True, exist_ok=True)
@@ -200,4 +214,5 @@ def fetch():
 if __name__ == "__main__":
     {"prepare": prepare, "push": push, "pushtransfer": pushtransfer, "status": status,
      "fetch": fetch, "fetchtransfer": fetchtransfer, "pusharchsmoke": pusharchsmoke,
-     "pusharch": pusharch, "fetcharch": fetcharch}[sys.argv[1] if len(sys.argv) > 1 else "status"]()
+     "pusharch": pusharch, "fetcharch": fetcharch, "pushtax": pushtax,
+     "fetchtax": fetchtax}[sys.argv[1] if len(sys.argv) > 1 else "status"]()

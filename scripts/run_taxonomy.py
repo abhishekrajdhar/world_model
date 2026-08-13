@@ -98,13 +98,24 @@ def main():
         for name in NEW:
             sp = extract_split(models, new_traj[name], cfg, device, f"{name}_test")
             newsplits[f"{name}_test"] = sp
-        # append the latent-novelty column consistently with the stored features
-        add_latent_nn_distance({**{k: dict(v) for k, v in newsplits.items()},
-                                "A_gtrain": {"X": S["A_gtrain"]["X"], "names": names,
-                                             "feature_groups": groups_map}},
-                               ref_key="A_gtrain")
-        for k, v in newsplits.items():
-            S[k] = v
+
+        # Append `latent_nn_dist` so E/F match the STORED feature layout exactly. The stored
+        # features already carry this column (it was appended during the main run), so a
+        # freshly extracted split is one column short and every downstream index shifts.
+        # Replicates the main run's reference sampling exactly (rng 0, 4000 reference rows).
+        ref_cols = [i for i, n in enumerate(names) if n.startswith("h0_")]
+        R = S["A_gtrain"]["X"][:, ref_cols]
+        rng_ref = np.random.default_rng(0)
+        if len(R) > 4000:
+            R = R[rng_ref.choice(len(R), 4000, replace=False)]
+        Rt = torch.as_tensor(R)
+        for k, sp in newsplits.items():
+            q_cols = [i for i, n in enumerate(sp["names"]) if n.startswith("h0_")]
+            assert len(q_cols) == len(ref_cols), (len(q_cols), len(ref_cols))
+            d = torch.cdist(torch.as_tensor(sp["X"][:, q_cols]), Rt).min(1).values.numpy()
+            sp["X"] = np.concatenate([sp["X"], d[:, None].astype(np.float32)], 1)
+            sp["names"] = list(sp["names"]) + ["latent_nn_dist"]
+            S[k] = sp
         assert S["E_test"]["X"].shape[1] == S["A_test"]["X"].shape[1], (
             S["E_test"]["X"].shape, S["A_test"]["X"].shape)
 

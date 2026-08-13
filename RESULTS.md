@@ -40,6 +40,7 @@ Three findings cut against the hypothesis and are, in our view, the more interes
 | **H5** — the OOD failure is repairable by scale-free inputs / a novelty gate | **NOT SUPPORTED** (see §8.2) |
 | **H6** — exposure to diverse shifts restores cross-distribution horizon prediction | **SUPPORTED** (see §8.3) |
 | **H7** — the result is a property of world models, not of one implementation | **SUPPORTED for H2; PARTIAL for H6** (see §8.4) |
+| **H8** — the failure-mode taxonomy predicts transfer to new configs | **NOT SUPPORTED by the frozen rule**; epistemic half confirmed (ρ +0.855 on unseen E), aleatoric half untested (see §8.5) |
 
 Overall, against the pre-registered decision rule in §11 of the protocol: **SUPPORTED**, with
 the scope restricted to predictors allowed to inspect their own imagined rollout — and, after
@@ -437,6 +438,85 @@ trained for the same 6000 steps as the GRUs — equal gradient updates, not equa
 (it is ~5x slower per step). A fairer compute-matched comparison would give it fewer steps,
 which would only weaken it, so its success here is not a compute artefact.
 
+## 8.5 H8: does the failure-mode taxonomy *predict*? — epistemic yes, aleatoric untested
+
+Six predictions frozen in [PREREGISTRATION_H8.md](PREREGISTRATION_H8.md) before E/F existed.
+**E** = `SimpleCrossingS11N5` (new epistemic), **F** = config A + 15% observation-cell
+corruption (a *different* aleatoric mechanism from C's action slip). Existing main-run world
+models, no retraining.
+
+### Spearman by regime (mean over 3 seeds; **bold** = config unseen in training)
+
+| regime | test A | test B | test C | test D | test E | test F |
+|---|---|---|---|---|---|---|
+| A | +0.580 | **+0.218** | **+0.213** | **+0.135** | **+0.116** | **+0.472** |
+| A+B | +0.584 | +0.755 | **+0.306** | **+0.771** | **+0.855** | **+0.373** |
+| A+C | +0.576 | **+0.461** | +0.479 | **+0.510** | **+0.555** | **+0.417** |
+| A+E | +0.581 | **+0.732** | **+0.313** | **+0.800** | +0.879 | **+0.423** |
+| A+F | +0.587 | **+0.266** | **+0.231** | **+0.102** | **+0.110** | +0.569 |
+
+| # | cell | threshold | ρ | seeds | holds |
+|---|---|---|---|---|---|
+| **P1** | A+B → E | ρ > 0.50 | **+0.855** | 3/3 | **YES** |
+| P2 | A+B → F | ρ < 0.35 | +0.373 | 1/3 | no |
+| **P3** | A+C → F | ρ > 0.50 | +0.417 | 0/3 | **no** |
+| **P4** | A+E → D | ρ > 0.50 | **+0.800** | 3/3 | **YES** |
+| P5 | A+F → C | ρ > 0.50 | +0.231 | 0/3 | no |
+| **P6** | `free_ahead` informative on E, not F | — | ρ_E +0.533, ρ_F +0.019 | — | **YES** |
+
+**Frozen verdict: NOT SUPPORTED.** (Noting a gap in our own rule: the pre-registration
+assigned NOT SUPPORTED only when P1 fails, and PARTIAL when P1+P2 hold but P3 fails. P1
+holding while P2 fails was unspecified; the scoring code defaulted to NOT SUPPORTED and we
+report that rather than re-deriving a friendlier label after the fact.)
+
+### The epistemic half is confirmed, and predictively
+
+E was **never seen** in training, is a different maze family from B and D, and is a *hard*
+config (`H*` 2.18, 42% of anchors at zero). It still behaves exactly as the taxonomy
+predicted, in both directions:
+
+- as a **recipient**: `A+B → E` = **+0.855** against a +0.116 IID-only baseline (P1);
+- as a **donor**: `A+E → D` = **+0.800** and `A+E → B` = +0.732 — E teaches what B and D teach;
+- the **mechanism** replicates on new data (P6): `free_ahead` is +0.533 on E, matching B
+  (+0.586) and D (+0.566), while remaining useless in-distribution (+0.004).
+
+An advance prediction about an unseen environment, confirmed at ρ +0.855 on 3/3 seeds, is the
+strongest evidence in this project that the epistemic grouping is real rather than a
+description fitted to B and D.
+
+### The aleatoric half failed as a *manipulation*, not as a hypothesis
+
+Config F is barely a shift. Its `H*` is **15.23** against A's 15.52, and the IID-only
+predictor already reaches **ρ +0.472** on it — more than double its transfer to any other
+config (+0.116 to +0.218). Observation noise leaves the action-conditioned `moved`/`dir`
+predictions largely intact, so F sits near the training distribution.
+
+That makes P3 and P5 uninformative about the taxonomy:
+
+- **P3** (`A+C → F` > 0.5) asks whether an aleatoric donor helps on F, but there is little to
+  help *with*; and every shift-exposed regime **underperforms the IID-only baseline on F**
+  (0.373 / 0.417 / 0.423 vs **0.472**).
+- **P5** (`A+F → C` > 0.5) asks whether F is a useful donor, but a config that is nearly
+  in-distribution teaches nothing: the `A+F` row is essentially the `A` row (→B +0.266 vs
+  +0.218, →D +0.102 vs +0.135).
+
+We flagged F's `H*` ≈ A's *before* scoring the predictions, and it is measurable without
+seeing any outcome, so this is not a post-hoc rescue. But the honest statement is that **the
+aleatoric half of the taxonomy remains untested**, not that it is refuted. C is still its
+only member.
+
+### A new finding: shift exposure is not free
+
+The F column exposes a cost that H6 could not see. On a **near-in-distribution** config,
+shift-exposed predictors are *worse* than the IID-only one (0.373–0.423 vs 0.472), while
+losing nothing on A itself (0.584 vs 0.580). Training on a distant shift pulls the predictor
+away from the regime where the model is still reliable.
+
+So H6's "one shift is enough" should be qualified: one shift buys a large gain on badly
+degraded configs and costs a modest amount on mildly shifted ones. That trade is invisible
+unless the evaluation suite spans a *range* of shift severities — which, before H8, ours
+did not.
+
 ## 9. Novelty assessment
 
 Against the [Phase 0 audit](docs/phase0_literature.md):
@@ -506,7 +586,7 @@ neither donates nor receives — is currently inferred from **three** configs, o
 the sole member of its family. That is a hypothesis fitted to a 2-vs-1 split, and it is the
 weakest load-bearing claim in the project.
 
-**Proposed experiment — a falsifiable test of the failure-mode-family taxonomy.** Add two new
+**[RUN — see §8.5]** Proposed experiment — a falsifiable test of the failure-mode-family taxonomy. Add two new
 configs chosen to make an advance prediction that can fail:
 
 - **E, epistemic**: a new layout topology (e.g. `SimpleCrossingS11N5`) — a geometric shift
