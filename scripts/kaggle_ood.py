@@ -25,6 +25,7 @@ DATASET_SLUG = "rih-features-main"
 KERNEL_SLUG = "rih-ood-repair"
 TRANSFER_SLUG = "rih-transfer-h6"
 ARCH_SLUG = "rih-cross-arch"
+ARCH_CKPT_SLUG = "rih-cross-arch-ckpt"
 SRC = ROOT / "results" / "main_kaggle" / "core" / "main"
 
 
@@ -75,7 +76,8 @@ def _payload() -> str:
 
 
 def push(seeds=(0, 1, 2), slug=None, script="scripts/run_ood_repair.py",
-         outdir="ood_repair", report="REPORT_H5.md", extra_args=None, need_features=True):
+         outdir="ood_repair", report="REPORT_H5.md", extra_args=None, need_features=True,
+         ckpt_dataset=None, ckpt_dest=None):
     user = _user()
     k = STAGE / "kernel"
     k.mkdir(parents=True, exist_ok=True)
@@ -106,6 +108,16 @@ if NEED_FEATURES:
             shutil.copy(f, "results/main")
     print("inputs:", sorted(os.listdir("results/main")), flush=True)
 
+CKPT_DEST = {ckpt_dest!r}
+if CKPT_DEST:
+    os.makedirs(CKPT_DEST, exist_ok=True)
+    pts = glob.glob("/kaggle/input/**/*.pt", recursive=True)
+    if not pts:
+        raise SystemExit("checkpoint dataset not attached")
+    for f in pts:
+        shutil.copy(f, CKPT_DEST)
+    print("restored", len(pts), "checkpoints into", CKPT_DEST, flush=True)
+
 import torch
 print("torch", torch.__version__, "cuda", torch.cuda.is_available(), flush=True)
 if torch.cuda.is_available():
@@ -135,7 +147,8 @@ if r.returncode != 0:
         "id": f"{user}/{slug}", "title": slug.replace("-", " "),
         "code_file": "kernel_main.py", "language": "python", "kernel_type": "script",
         "is_private": True, "enable_gpu": True, "enable_internet": True,
-        "dataset_sources": ([f"{user}/{DATASET_SLUG}"] if need_features else []),
+        "dataset_sources": (([f"{user}/{DATASET_SLUG}"] if need_features else [])
+                            + ([f"{user}/{ckpt_dataset}"] if ckpt_dataset else [])),
         "competition_sources": [], "kernel_sources": [],
     }, indent=2))
     _run(["kaggle", "kernels", "push", "-p", str(k)])
@@ -153,8 +166,11 @@ def pusharchsmoke():
 
 
 def pusharch():
+    """Analysis-only rerun: the 9 trained checkpoints are restored from a dataset, so
+    train_arch() finds them cached and only feature extraction + analysis run."""
     push(slug=ARCH_SLUG, script="scripts/run_cross_arch.py", outdir="cross_arch",
-         report="REPORT_H7.md", seeds=(0, 1), need_features=False,
+         report="REPORT_H7.md", seeds=(0,), need_features=False,
+         ckpt_dataset=ARCH_CKPT_SLUG, ckpt_dest="checkpoints/cross_arch",
          extra_args=["--k", "3", "--steps", "6000"])
 
 

@@ -48,7 +48,7 @@ SPLITS = ["A_gtrain", "A_val", "A_test", "B_test", "C_test", "D_test"]
 ARCHS = {
     "gru_large": ("gru", dict(deter=512, stoch=48, hidden=512, obs_embed=384)),
     "gru_small": ("gru", dict(deter=256, stoch=16, hidden=256, obs_embed=192)),
-    "transformer": ("tfm", dict(d_model=256, n_layers=3, n_heads=4, stoch=32,
+    "transformer": ("tfm", dict(d_model=256, n_layers=2, n_heads=4, stoch=32,
                                 hidden=256, obs_embed=256)),
 }
 
@@ -103,6 +103,9 @@ def main():
     ck = ROOT / "checkpoints" / "cross_arch"
     print(f"device={device} archs={list(ARCHS)} seeds={args.seeds} K={args.k}", flush=True)
 
+    if args.smoke:   # validate the interface, not the science
+        cfg.max_anchors_per_split = 600
+        cfg.anchor_stride = 32
     data = build_data(cfg, ROOT / "experiments" / cfg.name)
 
     per_arch: dict[str, dict] = {}
@@ -120,12 +123,23 @@ def main():
         if args.smoke:
             continue
 
-    names = per_arch["gru_large"][args.seeds[0]]["A_test"]["names"]
-    groups_map = per_arch["gru_large"][args.seeds[0]]["A_test"]["feature_groups"]
-    nF = per_arch["gru_large"][args.seeds[0]]["A_test"]["X"].shape[1]
-    base_cols = cols_for(groups_map, VARIANTS["no_latent"], nF)
-    print(f"\nshared feature subspace: {len(base_cols)} columns "
-          f"(identical across architectures)", flush=True)
+    # Feature-vector layouts differ across architectures because the latent dimensionality
+    # differs (deter 512/256/d_model 256), so column INDICES are not comparable. Select each
+    # architecture's own `no_latent` columns and assert the resulting NAMES are identical --
+    # that is what makes cross-architecture application of g_phi meaningful.
+    arch_cols, sel_names = {}, None
+    for arch in ARCHS:
+        s = per_arch[arch][args.seeds[0]]["A_test"]
+        c = cols_for(s["feature_groups"], VARIANTS["no_latent"], s["X"].shape[1])
+        nm = [s["names"][i] for i in c]
+        if sel_names is None:
+            sel_names = nm
+        elif nm != sel_names:
+            raise SystemExit(f"feature-name mismatch for {arch}:\n"
+                             f"  expected {sel_names[:8]}...\n  got      {nm[:8]}...")
+        arch_cols[arch] = c
+    print(f"\nshared feature subspace: {len(sel_names)} columns, names identical across "
+          f"all {len(ARCHS)} architectures", flush=True)
     if args.smoke:
         print("\nSMOKE OK: all architectures produce the same feature interface")
         for arch in ARCHS:
@@ -141,7 +155,7 @@ def main():
         rec = []
         for seed in args.seeds:
             S = per_arch[arch][seed]
-            pools = build_pools(S, base_cols)
+            pools = build_pools(S, arch_cols[arch])
             # H2: g_phi vs the optimistically-fitted Claim-A ceiling on A-test
             m, std, _ = train_predictor(
                 pools["A"]["train"]["X"], pools["A"]["train"]["y"],
@@ -150,11 +164,14 @@ def main():
                 device=str(device))
             te = pools["A"]["test"]
             p = m.predict(torch.as_tensor(std(te["X"]), device=device))[0]
+            # Feature indices are architecture-specific (latent dims differ), so the name
+            # list MUST come from this architecture, not from a shared one.
+            nm = S["A_test"]["names"]
             best = None
             for lab, feat in SCALAR_SIGNALS.items():
-                if feat not in names:
+                if feat not in nm:
                     continue
-                u = S["A_test"]["X"][:, names.index(feat)]
+                u = S["A_test"]["X"][:, nm.index(feat)]
                 c = isotonic_fit_predict(u, S["A_test"]["y"], u)   # fitted ON TEST: optimistic
                 if best is None or mae(c, S["A_test"]["y"]) < mae(best[1], S["A_test"]["y"]):
                     best = (lab, c)
@@ -189,7 +206,7 @@ def main():
 
     # ---------- (b) cross-architecture transfer of g_phi ----------
     for seed in args.seeds:
-        pools = {a: build_pools(per_arch[a][seed], base_cols) for a in ARCHS}
+        pools = {a: build_pools(per_arch[a][seed], arch_cols[a]) for a in ARCHS}
         fitted = {}
         for a in ARCHS:
             m, std, _ = train_predictor(

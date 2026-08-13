@@ -43,7 +43,11 @@ def rollout(models, batch, context: int = CONTEXT, h_max: int = H_MAX,
         h, z, aux = m.filter(batch, upto=context)
         out = m.imagine(h, z, actions, sample=False)
         per_member.append(out)
-        anchor_state.append({"h": h, "z": z, **aux})
+        # `h` is the recurrent state for the GRU model, but architectures without a recurrent
+        # vector (e.g. the Transformer) hand back an opaque carrier plus an explicit
+        # `h_repr` tensor to use as the belief representation.
+        h_repr = aux.pop("h_repr", h)
+        anchor_state.append({"h": h_repr, "z": z, **aux})
 
     # ensemble-averaged head probabilities at each imagined step
     p_dir = torch.stack([F.softmax(o["dir"], -1) for o in per_member]).mean(0)      # (B,H,4)

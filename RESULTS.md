@@ -39,6 +39,7 @@ Three findings cut against the hypothesis and are, in our view, the more interes
 | **H4** — adaptive horizon improves planning at lower compute (Claim C) | **NOT SUPPORTED** (weak test — see §8.1) |
 | **H5** — the OOD failure is repairable by scale-free inputs / a novelty gate | **NOT SUPPORTED** (see §8.2) |
 | **H6** — exposure to diverse shifts restores cross-distribution horizon prediction | **SUPPORTED** (see §8.3) |
+| **H7** — the result is a property of world models, not of one implementation | **SUPPORTED for H2; PARTIAL for H6** (see §8.4) |
 
 Overall, against the pre-registered decision rule in §11 of the protocol: **SUPPORTED**, with
 the scope restricted to predictors allowed to inspect their own imagined rollout — and, after
@@ -361,6 +362,80 @@ Note also that no feature is both stable *and* useful: `latent_prior_std` has th
 instability (RS 0.0020) but ρ ≈ 0 everywhere. There is no distribution-invariant uncertainty
 scalar here — which is why a *learned* predictor with shift exposure is needed rather than a
 better hand-chosen signal.
+
+## 8.4 H7: is this a property of world models, or of one implementation?
+
+Three architectures trained on config A with identical data, seeds, targets and downstream
+code — only the dynamics differ. **Single seed, K=3: an existence check, not a precision
+estimate.** Report: [results/cross_arch/REPORT_H7.md](results/cross_arch/REPORT_H7.md).
+
+| | dynamics | params |
+|---|---|---|
+| `gru_large` | GRU-RSSM, deter 512 / stoch 48 | 2.85 M |
+| `gru_small` | GRU-RSSM, deter 256 / stoch 16 | ~0.8 M |
+| `transformer` | causal attention, **no recurrence, no autoregressive latent feedback** | 2.87 M |
+
+The `no_latent` feature set has identical *names* in all three (74 columns, asserted at
+runtime), which is what makes the cross-architecture cells meaningful.
+
+### H2 replicates in every architecture
+
+| arch | `H*` on A | A MAE | A ρ | beats its own Claim-A ceiling |
+|---|---|---|---|---|
+| gru_large | 15.59 | 6.408 | +0.584 | **yes** (+1.355) |
+| gru_small | 13.65 | 6.351 | +0.551 | **yes** (+1.050) |
+| transformer | 16.58 | 6.432 | +0.513 | **yes** (+0.993) |
+
+Each is compared against *its own* optimistically-fitted ceiling on *its own* `H*`. The core
+positive result is **not an artefact of the GRU-RSSM implementation**: a model with no
+recurrence and no latent feedback reproduces it at similar strength.
+
+### The metacognitive signal is partially, not fully, architecture-general
+
+`g_φ` fitted on one architecture's features, applied to another's A-test (Spearman):
+
+| fitted on \ evaluated on | gru_large | gru_small | transformer |
+|---|---|---|---|
+| **gru_large** | +0.584 | +0.391 | +0.207 |
+| **gru_small** | +0.356 | +0.551 | +0.288 |
+| **transformer** | +0.363 | +0.362 | +0.513 |
+
+A clear hierarchy: **within-architecture (0.51–0.58) > within-family (0.36–0.39) >
+cross-family (0.21–0.36)**. Cross-architecture transfer is clearly above zero — there is a
+shared, architecture-independent component to the uncertainty→horizon relationship — but it
+loses roughly a third to two-thirds of the within-architecture signal. A horizon predictor is
+therefore *partly* portable across world models and cannot simply be reused as-is.
+
+### H6 does NOT replicate in the Transformer — and the reason is informative
+
+| arch | ρ on held-out D, train A | train A+B | `H*` on D | zero-fraction on D |
+|---|---|---|---|---|
+| gru_large | +0.201 | **+0.724** | 5.04 | 0.293 |
+| gru_small | −0.003 | **+0.745** | 5.13 | 0.295 |
+| transformer | +0.257 | **+0.290** | **8.55** | **0.038** |
+
+Shift exposure transforms both GRUs and barely moves the Transformer. The explanation is in
+the last two columns: **the Transformer is a much better world model out of distribution.**
+On D its imagination stays exact for 8.55 steps versus ~5.1 for the GRUs, and only **3.8%**
+of its anchors collapse to `H* = 0` versus **~29%** for both GRUs.
+
+For the GRUs, config D is largely a catastrophe, and what shift exposure teaches is mostly
+"out of distribution, expect near-zero" — a large, easily-learned correction. The Transformer
+has no such collapse to correct, so there is far less headroom for diversity to recover.
+
+This sharpens H6 rather than contradicting it: **the size of the diversity effect is a
+function of how badly the world model degrades under shift, which is architecture-dependent.**
+The claim "diverse exposure restores transfer" should be stated as "restores transfer *to the
+extent that the underlying model has degraded*", and a stronger world model needs the
+correction less.
+
+### Caveats
+
+Single seed and K=3 (vs 3 seeds, K=5 in the main run), so no seed variance is available and
+the ensemble-disagreement features are computed over fewer members. The Transformer was
+trained for the same 6000 steps as the GRUs — equal gradient updates, not equal wall-clock
+(it is ~5x slower per step). A fairer compute-matched comparison would give it fewer steps,
+which would only weaken it, so its success here is not a compute artefact.
 
 ## 9. Novelty assessment
 

@@ -143,6 +143,8 @@ class TransformerWorldModel(nn.Module):
             moved_err = (pred["moved"].argmax(-1)[:, 1:] != sub["moved"][:, 1:]).float()
             dir_err = (pred["dir"].argmax(-1)[:, 1:] != sub["dir"][:, 1:]).float()
         aux = {
+            # no recurrent vector exists; the attended feature at the anchor plays that role
+            "h_repr": feat_post[:, -1],
             "prior_mu": pm[:, -1], "prior_std": ps[:, -1],
             "post_mu": qm[:, -1], "post_std": qs[:, -1],
             "ctx_moved_err": moved_err.mean(1),
