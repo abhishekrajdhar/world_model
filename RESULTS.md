@@ -41,6 +41,7 @@ Three findings cut against the hypothesis and are, in our view, the more interes
 | **H6** — exposure to diverse shifts restores cross-distribution horizon prediction | **SUPPORTED** (see §8.3) |
 | **H7** — the result is a property of world models, not of one implementation | **SUPPORTED for H2; PARTIAL for H6** (see §8.4) |
 | **H8** — the failure-mode taxonomy predicts transfer to new configs | **NOT SUPPORTED by the frozen rule**; epistemic half confirmed (ρ +0.855 on unseen E), aleatoric half untested (see §8.5) |
+| **H9** — the aleatoric family transfers within itself | **NOT SUPPORTED** (ρ +0.444 vs 0.50 bar on the valid instrument); taxonomy replaced by a **directional asymmetry** (see §8.6) |
 
 Overall, against the pre-registered decision rule in §11 of the protocol: **SUPPORTED**, with
 the scope restricted to predictors allowed to inspect their own imagined rollout — and, after
@@ -49,11 +50,16 @@ distribution shift of the same failure family during training.
 
 **The single most important result is H6 (§8.3).** The OOD failure is *not* intrinsic: one
 shift in `g_phi`'s training set moves a never-seen config from MAE 16.77 / ρ +0.135 to
-MAE 3.58 / ρ +0.766, and survives size-matching. But transfer is organised by **failure-mode
-family** — epistemic shifts (unseen geometry) transfer to each other and not to the aleatoric
-shift (action noise). The rank-stability analysis explains why: the predictor must switch from
-a model-internal uncertainty cue that is strong in-distribution and collapses OOD, to an
-observation-geometry cue that is useless in-distribution and dominant OOD.
+MAE 3.58 / ρ +0.766, and survives size-matching. Transfer is **directional** (§8.6): an
+epistemic shift teaches a specific, powerful cue that only geometric shifts can use
+(epistemic→epistemic +0.73…+0.86, epistemic→aleatoric ~+0.31), while an aleatoric shift
+teaches a weaker but general lesson (aleatoric→anything +0.39…+0.54). The rank-stability
+analysis explains why: the predictor must switch from a model-internal uncertainty cue that is
+strong in-distribution and collapses OOD, to an observation-geometry cue (`free_ahead`) that
+is useless in-distribution, dominant on geometric shifts, and inert on noise-driven ones.
+
+*(An earlier draft described this as a two-family taxonomy. H9 tested that claim with a valid
+instrument and it did not hold; the asymmetry above is what the evidence supports.)*
 
 ## 3. Main quantitative results (A-test, mean ± sd over 3 seeds)
 
@@ -517,6 +523,81 @@ degraded configs and costs a modest amount on mildly shifted ones. That trade is
 unless the evaluation suite spans a *range* of shift severities — which, before H8, ours
 did not.
 
+## 8.6 H9: the aleatoric family — and the taxonomy replaced by an asymmetry
+
+Frozen in [PREREGISTRATION_H9.md](PREREGISTRATION_H9.md), with the **validity gate** H8
+lacked. Two new aleatoric mechanisms, severity chosen by a pre-specified calibration rule
+(closest `H*` to config B's 7.75, measured on disjoint layout seeds).
+
+### The validity gate rejected one instrument by rule
+
+| config | mechanism | `H*` | IID-only `A→cfg` | gate (`H* ≤ 9.3` and ρ < 0.35) |
+|---|---|---|---|---|
+| **F2** | perception noise, p=0.7 | 12.72 | +0.359 | **NO — invalid instrument** |
+| **F3** | action dropout, p=0.2 | 3.67 | +0.238 | **YES** |
+
+Observation noise never bites: even at **70%** cell corruption `H*` only falls to 12.7 (from
+15.5). An action-conditioned model with 16 steps of belief context simply does not depend on
+the corrupted channel. F2 is declared uninformative *by the frozen rule*, not by argument —
+which is exactly the correction H8 needed.
+
+### Transfer matrix (Spearman, mean over 3 seeds; **bold** = unseen in training)
+
+| donor regime | test A | test B | test C | test D | test F2 | test F3 |
+|---|---|---|---|---|---|---|
+| A | +0.580 | **+0.218** | **+0.213** | **+0.135** | **+0.359** | **+0.238** |
+| A+B *(epistemic)* | +0.584 | +0.755 | **+0.306** | **+0.771** | **+0.207** | **+0.311** |
+| A+C *(aleatoric)* | +0.576 | **+0.461** | +0.479 | **+0.510** | **+0.286** | **+0.444** |
+| A+F2 *(invalid)* | +0.583 | **+0.226** | **+0.241** | **+0.087** | +0.545 | **+0.257** |
+| A+F3 *(aleatoric)* | +0.566 | **+0.388** | **+0.468** | **+0.539** | **+0.311** | +0.451 |
+
+| # | cell | threshold | ρ | seeds | holds | instrument |
+|---|---|---|---|---|---|---|
+| Q1 | A+C → F2 | > 0.50 | +0.286 | 0/3 | no | **INVALID** |
+| Q2 | A+B → F2 | < 0.35 | +0.207 | 3/3 | yes | **INVALID** |
+| Q3 | A+F2 → C | > 0.50 | +0.241 | 0/3 | no | invalid donor |
+| **Q4** | A+C → F3 | > 0.50 | **+0.444** | 0/3 | **no** | valid |
+| **Q5** | A+B → F3 | < 0.35 | **+0.311** | 3/3 | **YES** | valid |
+| Q6 | `free_ahead` on F2/F3 | \|ρ\| < 0.15 | −0.015 / −0.031 | — | **YES** | — |
+
+**Verdict: NOT SUPPORTED.** Note a second mismatch between our rule and our scoring code: the
+pre-registration says the verdict is "evaluated only over configs that pass the validity
+gate", which makes Q1/Q2 uninformative and puts the weight on Q4/Q5. The script instead
+scored Q1 as a failure and emitted NOT SUPPORTED. Both paths reach the same verdict here — on
+the valid instrument, `A+C → F3` = **+0.444** misses the pre-registered 0.50 bar — so the
+conclusion is unchanged, but we report the discrepancy rather than quietly using the reading
+that suits us.
+
+### What actually organises transfer: an asymmetry, not two families
+
+Pooling H8 and H9 gives four donors and four valid recipients, and the structure is
+**directional**:
+
+| | → epistemic (B, D, E) | → aleatoric (C, F3) |
+|---|---|---|
+| **epistemic donor** (B, E) | **+0.73 … +0.86** | +0.31 |
+| **aleatoric donor** (C, F3) | +0.39 … +0.54 | +0.44 … +0.47 |
+
+- **Epistemic → epistemic is exceptional** (0.73–0.86) and is the only cell that clears 0.7.
+- **Epistemic → aleatoric is the weakest cell** (~0.31), barely above the 0.22–0.24 baselines.
+- **Aleatoric donors are moderate but broad**: C and F3 help epistemic recipients (0.39–0.54)
+  about as much as they help each other (0.44–0.47).
+
+So the two-family partition is wrong. The correct statement is that **an epistemic shift
+teaches a specific, powerful cue that only geometric shifts can use, whereas an aleatoric
+shift teaches a weaker but general lesson**. Q6 pins the mechanism down: `free_ahead` — the
+carrier of epistemic transfer (+0.53 to +0.59 on B/D/E) — is inert on both aleatoric configs
+(−0.015, −0.031). There is no equivalent single carrier on the aleatoric side, which is why
+those donors transfer broadly but never strongly.
+
+`A+F2` is the control that confirms the reading: a near-in-distribution config teaches nothing
+(→B +0.226, →D +0.087, i.e. at or below the IID-only baseline), reproducing F's behaviour in
+H8 and showing the effect requires genuine degradation, not merely a nominal "shift".
+
+**Consequence for the paper:** the epistemic/aleatoric *taxonomy* claim is withdrawn. What
+survives, and is supported by two independent donors per side across two experiments, is the
+**asymmetry** plus its mechanistic explanation.
+
 ## 9. Novelty assessment
 
 Against the [Phase 0 audit](docs/phase0_literature.md):
@@ -574,6 +655,12 @@ resting on the fewest configurations (see §11).
    beat online truncation by 1.96 MAE, but the reviewer is right that the a-priori framing
    does not survive.
 5. *"The OOD failure undermines the practical claim."* Agreed, and we say so.
+
+## 10b. Experimental phase: FROZEN
+
+Experiments are closed as of H9. Nine pre-registered hypotheses, five separate frozen
+protocols, 24 world models across three architectures, and every negative result retained.
+Subsequent work is analysis and writing only; any new experiment starts a new protocol.
 
 ## 11. Next experiment (single most valuable)
 

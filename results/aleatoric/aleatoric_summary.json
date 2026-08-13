@@ -1,0 +1,28 @@
+{
+  "verdict": "NOT SUPPORTED (aleatoric shifts do not transfer to each other)",
+  "valid": {
+    "F2": false,
+    "F3": true
+  },
+  "predictions": {
+    "Q1": false,
+    "Q2": false,
+    "Q3": false,
+    "Q4": false,
+    "Q5": true
+  },
+  "free_ahead": {
+    "F2": -0.01524556489159718,
+    "F3": -0.030893032102902573
+  },
+  "chosen": {
+    "obs": {
+      "p": 0.7,
+      "H_star_cal": 12.684324324324324
+    },
+    "dropout": {
+      "p": 0.2,
+      "H_star_cal": 3.787027027027027
+    }
+  }
+}
