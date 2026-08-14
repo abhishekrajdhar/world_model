@@ -83,8 +83,10 @@ prose/table disagreement), so it is worth running alongside the build rather tha
 3. **Page limit is met** at 8 body pages, but with no slack. If the ICML style file changes
    the layout, §7 (mechanistic analysis) and §6.8 (planning) compress most safely. Do not cut
    negative results — move them to the supplement with a forward reference instead.
-4. **Anonymise** if the venue requires it: the author block is empty, but the repository URL
-   and Kaggle account names appear in the supplement's compute paragraph.
+4. **Anonymise for double-blind review.** The manuscript now carries an author block
+   (Abhishek Rajdhar Dubey, Independent Researcher). ICML review is double-blind, so this
+   must be removed for submission and restored for camera-ready. The supplement's compute
+   paragraph also names the Kaggle platform; check venue policy before submitting.
 
 ## Provenance
 
