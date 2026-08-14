@@ -26,6 +26,7 @@
 \newcommand{\Hhat}{\hat{H}}
 \newcommand{\gphi}{g_{\phi}}
 \newcommand{\rmse}{\mathrm{RMSE}}
+\providecommand{\tabledir}{tables}
 
 \title{Learning to Monitor the Reliability Horizon of Imagined Futures}
 \author{}
@@ -195,8 +196,10 @@ An agent observes $o_t$ and acts with $a_t$. A world model with parameters $\the
 belief $(h_t, z_t)$ and predicts forward without further observations. Given an action sequence
 $a_{t:t+H-1}$ known at planning time, the model produces an \emph{imagined rollout}
 \begin{equation}
-\hat{\tau}_{t:t+H} = \big(\hat{s}_{t+1}, \hat{s}_{t+2}, \dots, \hat{s}_{t+H}\big),
-\qquad \hat{s}_{t+k} = \mathrm{dec}_\theta(h_{t+k}, z_{t+k}).
+\begin{aligned}
+\hat{\tau}_{t:t+H} &= \big(\hat{s}_{t+1}, \hat{s}_{t+2}, \dots, \hat{s}_{t+H}\big), \\
+\hat{s}_{t+k} &= \mathrm{dec}_\theta(h_{t+k}, z_{t+k}).
+\end{aligned}
 \end{equation}
 
 \paragraph{Reliability horizon.}
@@ -277,13 +280,13 @@ has no autoregressive latent feedback.}
 \label{fig:arch}
 \end{figure*}
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering\small
 \input{tables/tab_architectures}
 \caption{World-model architectures, with in-distribution monitor performance and the margin
 over that architecture's own Claim-A ceiling. Single seed, $K=3$ ensemble members.}
 \label{tab:arch}
-\end{table}
+\end{table*}
 
 \section{Experimental Setup}
 \label{sec:setup}
@@ -317,8 +320,8 @@ Table~\ref{tab:ledger} lists all nine pre-registered hypotheses with their froze
 Five were not supported. We report them in the main text rather than the appendix.
 
 \begin{table*}[t]
-\centering\small
-\input{tables/tab_ledger}
+\centering\footnotesize
+\resizebox{\textwidth}{!}{\input{tables/tab_ledger}}
 \caption{All pre-registered hypotheses and their frozen verdicts. H4 is labelled a weak test
 because the planning task's compute--performance frontier turned out to be monotone, leaving no
 interior optimum for an adaptive horizon to find. H8/H9 withdrew a proposed shift-type
@@ -360,8 +363,8 @@ of the target.}
 \end{figure}
 
 \begin{table}[t]
-\centering\small
-\input{tables/tab_main}
+\centering\footnotesize
+\resizebox{\columnwidth}{!}{\input{tables/tab_main}}
 \caption{In-distribution horizon prediction on A-test, mean $\pm$ s.d.\ over three seeds. The
 Claim-A ceiling is fitted on the evaluation split and is therefore optimistic. Bold marks the
 primary monitor only.}
@@ -400,7 +403,7 @@ decision rules. Bars are means over three seeds, error bars s.d.}
 \end{figure}
 
 \begin{table}[t]
-\centering\small
+\centering\footnotesize
 \input{tables/tab_ood}
 \caption{Distribution-shift failure and the two repair attempts. Predicted horizons rise where
 true horizons fall. Neither repair restores conservatism. Evaluated on full configuration

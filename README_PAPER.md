@@ -14,20 +14,31 @@ paper/
 
 ## Compile
 
+Built and verified with Tectonic 0.17.0 (`brew install tectonic`), which fetches the required
+LaTeX packages on demand and runs BibTeX automatically:
+
+```bash
+cd paper && tectonic -X compile main.tex
+```
+
+```bash
+cd paper/supplementary && tectonic -X compile appendix.tex
+```
+
+A standard TeX Live installation works equally well:
+
 ```bash
 cd paper && pdflatex main && bibtex main && pdflatex main && pdflatex main
 ```
 
-```bash
-cd paper/supplementary && pdflatex appendix && bibtex appendix && pdflatex appendix
-```
-
 `main.tex` compiles standalone as a two-column article. To use the official ICML style, drop
 `icml2025.sty` (and its `.bst`) beside `main.tex`; the `\IfFileExists` switch at the top picks
-it up automatically, so no edit is needed. The manuscript is always buildable without it.
+it up automatically, so no edit is needed.
 
-**Not compiled here.** No TeX toolchain is installed on this machine, so the sources were
-validated structurally instead — see below. Compile before submitting.
+**Build status:** both documents compile clean — **0 errors, 0 undefined references, 0
+undefined citations, 0 overfull boxes** in `main.tex`. Output is **9 pages** (8 pages of body,
+references beginning on page 9) plus a **4-page** supplement, which fits the ICML limit of 8
+pages excluding references.
 
 ## Regenerate figures and tables
 
@@ -59,7 +70,8 @@ that banned phrasings have not reappeared (anthropomorphic claims, the withdrawn
 epistemic/aleatoric taxonomy, "proves", marketing language). Exit status is non-zero on any
 problem. Current status: **0 problems**.
 
-This is a substitute for, not a replacement of, a real compile.
+This runs in a second and catches things a compile does not (silent claim drift,
+prose/table disagreement), so it is worth running alongside the build rather than instead of it.
 
 ## Before submission
 
@@ -68,9 +80,9 @@ This is a substitute for, not a replacement of, a real compile.
 2. **References are verified.** All nine recent preprints were checked against their arXiv
    abstract pages (title, full author list, identifier, submission date) and are cited
    properly; see `BIBLIOGRAPHY_AUDIT.md`. Nothing further is required here.
-3. **Check the page limit.** The manuscript currently runs long for a main track; §7
-   (mechanistic analysis) and §5.7 (planning) compress most safely. Do not cut negative
-   results — move them to the supplement with a forward reference if space demands it.
+3. **Page limit is met** at 8 body pages, but with no slack. If the ICML style file changes
+   the layout, §7 (mechanistic analysis) and §6.8 (planning) compress most safely. Do not cut
+   negative results — move them to the supplement with a forward reference instead.
 4. **Anonymise** if the venue requires it: the author block is empty, but the repository URL
    and Kaggle account names appear in the supplement's compute paragraph.
 

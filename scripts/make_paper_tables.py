@@ -65,20 +65,20 @@ def t_main():
                 f"{f(m[1],0)}\\,$\\pm$\\,{sd[1]:.3f} & {f(m[2],0)} \\\\\n")
 
     body = row("\\textbf{Monitor $g_\\phi$} (per-seed selected)", pm.mean(0), pm.std(0), bold=True)
-    for lbl, k in [("\\quad fixed variant: \\texttt{no\\_latent}", "g_no_latent"),
-                   ("\\quad fixed variant: \\texttt{full}", "g_full"),
-                   ("\\quad uncertainty features only", "g_uncertainty_only")]:
+    for lbl, k in [("\\quad \\texttt{no\\_latent}", "g_no_latent"),
+                   ("\\quad \\texttt{full}", "g_full"),
+                   ("\\quad uncertainty only", "g_uncertainty_only")]:
         v = AGG[k]
         body += (f"{lbl} & {v['mae']['mean']:.3f}\\,$\\pm$\\,{v['mae']['sd']:.3f} & "
                  f"{v['spearman']['mean']:.3f}\\,$\\pm$\\,{v['spearman']['sd']:.3f} & "
                  f"{v['r2']['mean']:.3f} \\\\\n")
     body += "\\midrule\n"
-    body += (f"Claim-A ceiling (isotonic, fitted on test) & {ceil[:,0].mean():.3f}\\,$\\pm$\\,"
+    body += (f"Claim-A ceiling (isotonic, on test) & {ceil[:,0].mean():.3f}\\,$\\pm$\\,"
              f"{ceil[:,0].std():.3f} & {ceil[:,1].mean():.3f} & {ceil[:,2].mean():.3f} \\\\\n")
-    for lbl, k in [("Monitor, strict a-priori (no rollout)", "g_strict_apriori"),
-                   ("Hand-crafted + actions (no model internals)", "g_hand_actions_only"),
-                   ("Online truncation (disp.\\ spread $\\geq 1$)", "iso_val::internal_truncation_disp"),
-                   ("Privileged: true local grid + actions", "B8b_privileged_state"),
+    for lbl, k in [("Strict a-priori (no rollout)", "g_strict_apriori"),
+                   ("Hand-crafted + actions", "g_hand_actions_only"),
+                   ("Online truncation", "iso_val::internal_truncation_disp"),
+                   ("Privileged: true local grid", "B8b_privileged_state"),
                    ("Fixed horizon (median of val)", "B1_fixed_horizon"),
                    ("Random horizon", "B2_random_horizon")]:
         v = AGG[k]
