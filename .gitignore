@@ -5,3 +5,15 @@ __pycache__/
 experiments/*/*.npz
 checkpoints/*/*.pt
 results/*/features_*.npz
+
+# LaTeX build artifacts
+paper/*.log
+paper/*.blg
+paper/*.bbl
+paper/*.aux
+paper/*.out
+paper/supplementary/*.log
+paper/supplementary/*.blg
+paper/supplementary/*.bbl
+paper/supplementary/*.aux
+paper/supplementary/*.out

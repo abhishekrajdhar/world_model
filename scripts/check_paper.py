@@ -29,6 +29,9 @@ combined = main + "\n" + supp
 # ---- \input targets ------------------------------------------------------
 for src, base in ((main, P), (appx, P / "supplementary"), (supp, P)):
     for t in re.findall(r"\\input\{([^}]+)\}", src):
+        # \tabledir is defined per-document (tables/ from main, ../tables/ from the
+        # supplement); resolve it to the canonical location for checking
+        t = t.replace("\\tabledir", "tables")
         cands = [base / t, base / (t + ".tex"), P / t, P / (t + ".tex")]
         if not any(c.exists() for c in cands):
             problems.append(f"missing \\input target: {t}")
