@@ -1,0 +1,17 @@
+\begin{tabular}{lccc}
+\toprule
+configuration & true $H^*$ & predicted $\hat H$ & Spearman $\rho$ \\
+\midrule
+A (in distribution) & 15.60 & 15.67 & +0.573 \\
+\midrule
+B (unseen layouts) & 7.75 & \textbf{21.01} & +0.219 \\
+C (action slip) & 4.11 & \textbf{12.82} & +0.271 \\
+D (long corridors) & 5.11 & \textbf{19.97} & +0.165 \\
+\midrule
+\multicolumn{4}{l}{\emph{Repair attempts (H5), predicted $\hat H$ on each split}}\\
+\quad no repair & \multicolumn{3}{c}{B 21.56\quad C 13.59\quad D 21.15} \\
+\quad rank-normalised inputs & \multicolumn{3}{c}{B 20.99\quad C 16.08\quad D 21.29} \\
+\quad novelty gate & \multicolumn{3}{c}{B 20.25\quad C 13.12\quad D 19.95} \\
+\quad both & \multicolumn{3}{c}{B 19.78\quad C 15.56\quad D 20.12} \\
+\bottomrule
+\end{tabular}

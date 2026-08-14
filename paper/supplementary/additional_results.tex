@@ -1,0 +1,123 @@
+\section{Additional Results}
+\label{app:additional}
+
+\subsection{Full hypothesis ledger}
+
+Table~\ref{tab:ledger} in the main text lists all nine hypotheses. Two procedural notes belong
+with it.
+
+First, in two places our scoring code and our written decision rule diverged. In H8 the
+pre-registration assigned \textsc{not supported} only when the first prediction failed and
+\textsc{partial} when the first two held, leaving the case ``first holds, second fails''
+unspecified; the code defaulted to \textsc{not supported} and we report that rather than
+choosing a label after seeing the outcome. In H9 the pre-registration states that the verdict
+is evaluated only over configurations passing the validity gate, which would make two
+predictions uninformative, while the code scored one of them as a failure. Both paths reach the
+same verdict, so nothing changes, but we record the discrepancy.
+
+Second, the ensemble-size ablation (seed 0) shows the effect does not require an ensemble:
+
+\begin{center}\small
+\begin{tabular}{cccc}
+\toprule
+$K$ & monitor MAE $\downarrow$ & $\rho$ $\uparrow$ & ceiling MAE \\
+\midrule
+1 & 6.908 & 0.533 & 8.897 \\
+3 & 6.582 & 0.547 & 7.809 \\
+5 & 6.504 & 0.559 & 7.583 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+At $K=1$ there is no ensemble disagreement at all, only single-model entropy and latent
+statistics, and the monitor still beats its ceiling --- by the largest margin of the three.
+Ensembling improves absolute accuracy and improves the ceiling faster than it improves the
+monitor.
+
+\subsection{Size-matched transfer control}
+
+Table~\ref{tab:transfermatched} repeats the transfer matrix with every regime subsampled to the
+A-only training-anchor count ($22{,}200$), so all regimes see equal data.
+
+\begin{table}[h]
+\centering\small
+\input{tables/tab_transfer_matched}
+\caption{Size-matched control for Table~\ref{tab:transfer}. Spearman $\rho$, mean over three
+seeds; italic entries are configurations seen in training.}
+\label{tab:transfermatched}
+\end{table}
+
+The critical cell $\mathrm{A{+}B{+}C}\to$D gives MAE $3.622$ and $\rho = 0.762$, against
+$3.584$ and $0.766$ unmatched. The effect is therefore not explained by sample count alone. We
+do not claim that diversity is its only cause: severity of the donor shift covaries with its
+presence, and we did not manipulate the two independently.
+
+\subsection{Rejected instruments}
+
+Two configurations failed the pre-registered validity gate (a new configuration counts as an
+instrument only if $\Hstar$ is at least $40\%$ below A's \emph{and} the no-exposure monitor
+transfers to it with $\rho < 0.35$):
+
+\begin{center}\small
+\begin{tabular}{llcc}
+\toprule
+& perturbation & $\Hstar$ & no-exposure $\rho$ \\
+\midrule
+F  & obs.\ noise $0.15$ & 15.23 & $+0.472$ \\
+F2 & obs.\ noise $0.70$ & 12.72 & $+0.359$ \\
+F3 & action dropout $0.20$ & \phantom{0}3.67 & $+0.238$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Observation noise never bites: even at $70\%$ cell corruption $\Hstar$ falls only from $15.5$
+to $12.7$. An action-conditioned model with sixteen steps of belief context does not depend
+heavily on the corrupted channel. F and F2 are reported as invalid instruments rather than as
+evidence about transfer; predictions targeting them are uninformative by rule. The severity
+ladder used to select F2 and F3 is in \texttt{results/aleatoric/calibration.json}.
+
+A useful control follows from this. The regime $\mathrm{A{+}F2}$ --- exposure to a
+configuration that barely degrades the model --- teaches nothing transferable: $\rho = 0.226$
+on B and $0.087$ on D, at or below the no-exposure baseline. Exposure helps only when the donor
+genuinely degrades the world model.
+
+\subsection{Planning experiment (weak test)}
+
+The adaptive-planning arm sets the imagination horizon of a random-shooting model-predictive
+controller to the monitor's prediction, clipped to $[1, 30]$, and is charged for the probe
+rollout used to produce that prediction ($K \cdot H_{\max}$ imagined states per decision).
+Candidate action sequences are drawn from the same forward-biased distribution used to collect
+training data. Targets require a detour: shortest-path distance must exceed Manhattan distance.
+Sixty layouts, paired across arms.
+
+\begin{center}\small
+\begin{tabular}{lccc}
+\toprule
+arm & success & imagined states / decision & mean $H$ \\
+\midrule
+fixed $H{=}3$  & $0.917 \pm 0.036$ & \phantom{0}288 & \phantom{0}3.0 \\
+fixed $H{=}5$  & $0.933 \pm 0.032$ & \phantom{0}480 & \phantom{0}5.0 \\
+fixed $H{=}10$ & $0.767 \pm 0.055$ & \phantom{0}960 & 10.0 \\
+fixed $H{=}20$ & $0.517 \pm 0.065$ & 1920 & 20.0 \\
+fixed $H{=}30$ & $0.367 \pm 0.062$ & 2880 & 30.0 \\
+adaptive       & $0.517 \pm 0.065$ & 2637 & 25.9 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Success falls monotonically with horizon, so the compute--performance frontier has no interior
+optimum and an adaptive rule has nothing to find. The detour manipulation did not take: mean
+detour was $0.13$ cells, with $57$ of $60$ layouts falling through to the least restrictive
+tier. We therefore report this as a weak test of downstream utility rather than a refutation.
+The adaptive arm's specific failure --- selecting $H \approx 26$ where $3$--$5$ is optimal ---
+is the anti-conservative bias of \S\ref{sec:ood} reappearing under the state distribution that
+model-predictive control itself induces.
+
+\subsection{Information-boundary verification}
+
+The monitor may use no observation, state, or error at time $>t$. This is verified
+executably rather than asserted: every field of the evaluation window strictly after the anchor
+is replaced with random values, the features are recomputed, and all feature columns must be
+bit-identical while the target must change. Corrupting the future leaves the features
+unchanged and moves mean $\Hstar$ from $6.45$ to $0.01$. The planned action sequence is
+deliberately preserved by the corruption, since a planner genuinely knows it.

@@ -1,0 +1,80 @@
+% Standalone supplementary document. Compile after main.tex, or \input the two section files
+% into main.tex before \end{document} to produce a single combined PDF.
+\documentclass[twocolumn,10pt]{article}
+
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{url}
+\usepackage{caption}
+\usepackage{natbib}
+\usepackage[margin=0.75in]{geometry}
+
+\IfFileExists{icml2025.sty}{\usepackage[accepted]{icml2025}}{}
+
+\captionsetup{font=small,labelfont=bf,skip=4pt}
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.06}
+
+\newcommand{\Hstar}{H^{*}}
+\newcommand{\Hhat}{\hat{H}}
+\newcommand{\gphi}{g_{\phi}}
+
+% Cross-references to the main text resolve only in the combined build; standalone builds
+% will show them as bold ?? markers, which is expected.
+\title{Supplementary Material\\\large Learning to Monitor the Reliability Horizon of
+Imagined Futures}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+This supplement documents the environments and data collection, the world models and monitor,
+the statistical procedure, the censoring analysis, additional results including the
+size-matched control and the ensemble-size ablation, the two configurations rejected as invalid
+instruments, the planning experiment, and the executable verification of the information
+boundary.
+
+Pre-registration documents, the deviation ledger, and per-seed statistics accompany the code.
+Every number reported in the main paper and in this supplement is emitted programmatically from
+stored result artifacts by \texttt{scripts/make\_paper\_tables.py} and
+\texttt{scripts/make\_paper\_figures.py}; neither script recomputes an experiment.
+
+\input{experimental_details}
+\input{additional_results}
+
+\section{Deviations from Pre-Registration}
+\label{app:deviations}
+
+Ten deviations are logged in \texttt{DEVIATIONS.md} with their timing relative to test
+evaluation. Six occurred before any test data was examined:
+
+\begin{itemize}\itemsep1pt
+\item[D1] Configurations changed after a geometry survey that used no neural network: the
+original set left the agent travelling $\approx 2.7$ cells in $30$ steps while seeing $4$ cells
+ahead, so the planned path never left the visible region and $\Hstar$ was degenerate.
+\item[D2] Collection policy changed from a BFS explorer to a forward-biased one, for the reason
+given in \S\ref{app:details}.
+\item[D3] Splits restructured to give the monitor its own world-model-held-out split.
+\item[D4] Pilot test seeds moved outside the main test range after an early diagnostic reported
+aggregate accuracies on an overlapping range; that diagnostic informed no threshold and its
+models and data were discarded.
+\item[D5] Two analysis additions: the privileged-state comparison, and selection of the monitor
+variant on validation MAE.
+\item[D6] Planning task made non-myopic, and the adaptive arm charged for its probe rollout.
+\end{itemize}
+
+Four are post-main-run and scoped to follow-ups: D7 records that all reported numbers come from
+Kaggle and that a briefly started local run was terminated without producing any result; D8
+records the planning re-run and its residual limitation; D9 records that the H5 protocol was
+frozen blind; D10 records the size-matched control and the new $60/20/20$ partitions, and notes
+that consequently H6 numbers are not directly comparable to full-split numbers elsewhere.
+
+\bibliographystyle{plainnat}
+\bibliography{../references}
+
+\end{document}

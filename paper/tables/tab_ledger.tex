@@ -1,0 +1,16 @@
+\begin{tabular}{llllp{3.3cm}}
+\toprule
+& question & protocol & verdict & note \\
+\midrule
+H1 & Uncertainty correlates with future error & main run & Supported & weak; the premise, not the result \\
+H2 & Monitor beats best monotone single-scalar map & main run, 3 seeds & \textbf{Supported} & $+1.04$ MAE, CIs exclude 0 \\
+H2$'$ & Same, without imagined-rollout features & main run, 3 seeds & Not supported & rollout information is necessary \\
+H3 & Horizon drops before failure under shift & main run, 3 seeds & Not supported & fails anti-conservatively \\
+H4 & Adaptive horizon improves planning at lower compute & 60 paired episodes & Not supported & \emph{weak test}: monotone frontier \\
+H5 & OOD failure repaired by rank-norm / novelty gate & 3 seeds, 4 arms & Not supported & rank-informativeness, not scale \\
+H6 & Shift exposure restores transfer & 3 seeds + size-matched & \textbf{Supported} & $\rho$ 0.135 $\to$ 0.766 on unseen D \\
+H7 & Phenomenon is architecture-general & 3 architectures, 1 seed & Supported (H2); partial (H6) & monitor only partly portable \\
+H8 & Shift-type taxonomy predicts transfer & 3 seeds, 2 new configs & Not supported & geometric half confirmed; F invalid \\
+H9 & Noise-driven shifts transfer to each other & 3 seeds, validity gate & Not supported & 0.444 vs 0.50 bar; taxonomy withdrawn \\
+\bottomrule
+\end{tabular}

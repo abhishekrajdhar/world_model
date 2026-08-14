@@ -1,0 +1,134 @@
+\section{Experimental Details}
+\label{app:details}
+
+\subsection{Environments and data collection}
+
+All configurations are MiniGrid environments \citep{chevalier2023minigrid} with
+\texttt{agent\_view\_size} $=5$, giving a $5\times5\times3$ egocentric symbolic observation, and
+\texttt{max\_steps} $=400$. Because the view is egocentric, grid size never enters the
+observation and one world model applies to every configuration by construction.
+
+\begin{center}\small
+\begin{tabular}{llll}
+\toprule
+& base environment & perturbation & role \\
+\midrule
+A  & \texttt{DoorKey-16x16}        & ---                       & training distribution \\
+B  & \texttt{FourRooms}            & ---                       & unseen layout topology \\
+C  & \texttt{DoorKey-16x16}        & action slip $0.15$        & stochastic dynamics \\
+D  & \texttt{MultiRoom-N6}         & ---                       & long corridors \\
+E  & \texttt{SimpleCrossingS11N5}  & ---                       & unseen maze family \\
+F  & \texttt{DoorKey-16x16}        & obs.\ noise $0.15$        & rejected instrument \\
+F2 & \texttt{DoorKey-16x16}        & obs.\ noise $0.70$        & rejected instrument \\
+F3 & \texttt{DoorKey-16x16}        & action dropout $0.20$     & accepted instrument \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\emph{Action slip} replaces the requested action by a uniformly random one. \emph{Observation
+noise} corrupts a fraction of object-channel cells in the egocentric view, leaving dynamics
+untouched. \emph{Action dropout} replaces the requested action by MiniGrid's \texttt{done}
+action, a verified no-op that does not terminate the episode, so the agent's intent silently
+fails to execute.
+
+\paragraph{Collection policy.} Trajectories are collected by a forward-biased explorer
+($p(\text{forward}) = 0.6$) that additionally pursues scripted key/door subgoals with
+probability $0.35$, for $120$ steps per episode. An earlier BFS-based explorer was discarded
+during pre-registration because it produced $P(\text{moved} \mid \text{forward}) = 0.985$:
+shortest paths never walk into walls, which removes the epistemic uncertainty the experiment
+measures. Under the forward-biased policy that quantity is $0.48$--$0.67$ across
+configurations.
+
+\paragraph{Splits.} Layout seeds are disjoint by construction: world-model training
+$[0,3000)$, monitor training $[3000,4200)$, validation $[4200,4800)$, test $[4800,5400)$, and
+shifted configurations $[100000,100600)$. The monitor trains on episodes the world model never
+saw, so $\Hstar$ is not inflated by memorisation. For the transfer experiments each shifted
+configuration is further partitioned by episode id ($\bmod\,5 \in \{0,1,2\}$ train, $3$
+validation, $4$ test), with the test portion evaluation-only in every regime.
+
+\subsection{World model}
+
+Encoder: per-cell embeddings of object ($11 \to 16$), colour ($6 \to 6$) and state
+($3 \to 6$), flattened over the $5\times5$ view and concatenated with a one-hot direction and a
+carrying flag, then a two-layer MLP to $384$ units. Recurrent core: a GRU cell
+\citep{cho2014gru} with deterministic state $512$ and Gaussian stochastic state $48$, with
+prior $p(z_t \mid h_t)$ and posterior $q(z_t \mid h_t, e_t)$. Decoder heads on $[h_t, z_t]$
+predict $\mathrm{dir}$ (4-way), $\mathrm{moved}$, $\mathrm{carrying}$ and
+$\mathrm{door\_open}$. Approximately $2.85$M parameters.
+
+Training deliberately mixes filtering and open-loop imagination: for each sequence a split
+point $c \sim \mathcal{U}\{5,\dots,20\}$ is drawn, the posterior is used for $t < c$ and the
+prior alone for $t \ge c$, so the model is optimised for the open-loop rollout that is later
+evaluated. Loss is a weighted cross-entropy over the heads (weights $1.0$ for $\mathrm{dir}$,
+$2.0$ for $\mathrm{moved}$, $0.3$ for the remaining two) plus a free-nats KL term.
+Optimisation: AdamW, learning rate $3\times10^{-4}$, weight decay $10^{-5}$, batch $64$,
+sequence length $50$, $6000$ steps, gradient-norm clipping at $100$, mixed precision on GPU.
+Ensembles use $K=5$ members differing in seed and data order.
+
+\paragraph{Transformer variant.} The Transformer world model replaces the recurrence with a
+causal self-attention stack \citep{vaswani2017attention} ($d_{\text{model}} = 256$, $2$ layers, $4$ heads, GELU,
+pre-norm). Observations are replaced by a learned mask token wherever unavailable, so training
+and imagination are single parallel passes and there is no autoregressive latent feedback. It
+exposes the same interface and head set. One definitional difference is unavoidable: its
+one-step context error uses a fully masked pass, because a per-token ``everything strictly
+before $t$'' mask is not expressible in one forward pass. This withholds \emph{more}
+information than the GRU version, so it cannot flatter the Transformer.
+
+\subsection{Monitor}
+
+$\gphi$ is an MLP with two hidden layers of $256$ units and SiLU activations, producing logits
+over $\Hstar \in \{0,\dots,30\}$, trained with cross-entropy for $60$ epochs (AdamW, learning
+rate $10^{-3}$, weight decay $10^{-4}$, batch $512$). Inputs are standardised using statistics
+from the training split only and clipped to $\pm 10$ s.d. The point estimate is the mean of the
+predictive distribution, and the same convention is applied to every baseline including
+isotonic regression, so comparisons are like-for-like. Checkpoint selection uses validation
+MAE; test data informs no choice.
+
+\paragraph{Feature groups.} \emph{latent}: member-0 belief state $[h_t, z_t]$. \emph{apriori}:
+one-step-ahead entropy and ensemble Jensen--Shannon divergence, prior/posterior standard
+deviations and their KL at the anchor, one-step tracking error over the observed context, and
+distance from the anchor latent to the nearest training latent. \emph{imag}: per-horizon
+ensemble disagreement, entropy, prior standard deviation and spread of imagined displacement at
+$h \in \{1,2,5,10,20,30\}$ plus summaries, and the horizon at which imagined rollouts first
+diverge by one cell (the online-truncation baseline). \emph{actions}: counts and prefix sums of
+the planned action sequence. \emph{hand}: object-type counts in the current view, visible free
+cells ahead, unseen cells ahead, carrying and door flags, direction. Variants used in the paper
+are \texttt{full} (all groups), \texttt{no\_latent}, \texttt{uncertainty\_only}
+(\emph{apriori}+\emph{imag}), \texttt{strict\_apriori} (all except \emph{imag}),
+\texttt{hand\_actions\_only} and \texttt{actions\_only}. In the cross-architecture experiment
+only \texttt{no\_latent} is used, because its column \emph{names} are identical across
+architectures while total feature dimensionality is not ($634$, $346$, $362$); the code asserts
+name equality before any cross-architecture comparison.
+
+\subsection{Statistics}
+
+Confidence intervals use a bootstrap that resamples whole \emph{episodes}, not anchors, because
+anchors within an episode are strongly dependent \citep{efron1993bootstrap}. We use $2000$
+resamples and report $95\%$ percentile intervals. Comparisons between methods are paired: the
+same resampled episode set is used for both methods and the interval is computed on the
+difference. Reported statistics are MAE, RMSE, Spearman $\rho$, Pearson $r$, Kendall $\tau$ and
+$R^2$; the main text reports MAE, $\rho$ and $R^2$. Calibration uses the expected calibration
+error of $P(\Hstar \ge h)$ in ten equal-width probability bins, discarding bins with fewer than
+$20$ states.
+
+The Claim-A ceiling uses isotonic regression \citep{barlow1972isotonic} with the direction
+chosen automatically, fitted on the evaluation split. This is deliberately optimistic: it is
+the minimum of \eqref{eq:ceiling} attainable by any monotone map, with no generalisation gap.
+
+\subsection{Censoring}
+
+$\Hstar$ is right-censored at $H_{\max} = 30$. On A-test $20.7$--$21.7\%$ of anchors are at the
+ceiling across seeds. Consequences: MAE is inflated relative to an uncensored target; the upper
+tail of $\Hstar$ is unidentified; and $R^2$ is computed against a censored variance. All
+methods including baselines and the ceiling face the identical censoring, so comparisons
+\emph{between} methods remain valid, but absolute values should not be read as estimates of an
+uncensored horizon.
+
+\subsection{Compute}
+
+The main run trained $15$ world models ($3$ seeds $\times$ $K=5$) in $4.4$ hours on a single
+Tesla P100. The cross-architecture study added $9$ models. All follow-up experiments (H5, H6,
+H8, H9) reuse stored features or checkpoints and require no world-model retraining. Total:
+$24$ world models. Runs were executed on Kaggle with PyTorch $2.5.1{+}$cu121; the preinstalled
+build did not support the allocated P100's compute capability, so a Pascal-compatible build is
+installed at kernel start.
