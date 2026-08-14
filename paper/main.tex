@@ -122,15 +122,57 @@ performance; it is the horizon over which the imagined rollout is exact.
 \paragraph{Uncertainty in learned dynamics.}
 Deep ensembles and their disagreement are the standard epistemic signal
 \citep{lakshminarayanan2017ensembles,chua2018pets}, alongside dropout- and
-distribution-based estimates \citep{gal2016dropout,kendall2017uncertainties}. These establish
+distribution-based estimates \citep{gal2016dropout,kendall2017uncertainties}. Recent work
+propagates epistemic uncertainty through long autoregressive rollouts and uses it to make
+offline model-based RL work on physical robots \citep{li2025uncertainty}. These establish
 Claim~A. We treat the best monotone map from such a scalar to the horizon as a control to be
 beaten, not as a method to be improved.
 
 \paragraph{Adaptive rollout length.}
 Model-based RL truncates imagined rollouts when uncertainty exceeds a threshold
-\citep{janner2019mbpo}. This is an \emph{online} rule that observes the rollout as it unfolds;
-we include it as a baseline. Our monitor differs in predicting a horizon as a quantity, and in
-being evaluated against ground truth rather than by downstream return.
+\citep{janner2019mbpo}, and rollout length can be tuned online by treating it as a meta-level
+decision problem \citep{bhatia2022adaptive}. These are \emph{online} rules that observe the
+rollout, or the training run, as it unfolds; we include threshold truncation as a baseline.
+Related adaptive machinery appears in latent visual MPC: ELVIS gates a time-varying
+$\lambda$ --- trading bootstrapping against look-ahead --- using an upper-confidence-bound
+score from an ensemble of latent critics \citep{du2026elvis}. That adapts the \emph{value
+estimator}, not a predicted horizon. Our monitor differs from all of these in predicting a
+horizon as a quantity and being evaluated against ground truth rather than by downstream
+return.
+
+\paragraph{Horizon certificates.}
+Two recent works certify how long a learned model can be trusted. \citet{wang2026certified}
+derives predictability certificates for equivariant latent world models from the finite-time
+Lyapunov spectrum, with expanding channels giving logarithmic horizons and contracting channels
+bounded error floors. \citet{wang2026conformal} calibrates trust-horizon curves by split
+conformal prediction and transports them across a symmetry orbit, reporting a median
+certified-to-measured horizon ratio of $0.67$ and zero anti-conservative violations across
+their stable audits. Both require known group symmetry and produce certificates that are
+orbit-level and worst-case; ours is a learned per-state estimate with no symmetry assumption
+and, notably, \emph{no} such conservatism guarantee --- the anti-conservative failure we
+document in \S\ref{sec:ood} is precisely what a conformal construction is designed to exclude.
+
+\paragraph{Self-estimated rollout error.}
+\citet{scheinker2026roundtrip} trains a bidirectional latent diffusion model and uses the
+discrepancy of a forward-then-backward rollout as a self-supervised proxy for rollout error,
+reporting Spearman correlations of $0.91$--$0.98$ against realised error on
+magnetohydrodynamics, astrophysical mixing layers and face video. That method requires a model
+trained to run in both directions and an extra backward pass, and its domains contain no
+acting agent; our \S\ref{sec:rollout} result --- that a forward rollout is necessary --- puts
+us on the same side of the a-priori boundary, at lower cost and without invertibility.
+\citet{song2026rollout} instead explains rollout error post hoc in graph world models, splitting
+long-horizon error into a topology factor governed by the graph spectral radius and a model
+factor; that analysis is model-level rather than per-state.
+
+\paragraph{Failure prediction and data coverage.}
+\citet{berger2026biased} report a negative result closely related to ours: in Dreamer-style
+RSSM latent rollouts, ensemble disagreement captures local epistemic uncertainty but does not
+reflect error accumulated over long rollouts, because rollouts are pulled toward well-modelled
+attractor regions where uncertainty declines even as deviation grows. \citet{hansen2026hallucination} argue that hallucination in large visual world models is predictable from
+coverage-related signals and preventable by coverage-aware data collection, concluding it is
+``inherently a data coverage issue''. Our \S\ref{sec:exposure} result is convergent evidence
+from a different direction: what fails under shift is repaired by exposure to the right kind of
+failure, not by better use of the uncertainty signal already available.
 
 \paragraph{Calibration, selective prediction, and shift.}
 Calibration of modern networks \citep{guo2017calibration}, selective prediction with a reject
@@ -143,10 +185,7 @@ we add that the degradation here inverts the safety-relevant direction.
 
 \paragraph{Positioning.} To our knowledge the combination we study --- a learned, per-state
 horizon monitor, evaluated against an optimistic monotone control, and characterised across
-shifts and architectures --- has not been reported. The Phase-0 survey recorded in the
-repository (\texttt{docs/phase0\_literature.md}) additionally lists recent preprints on
-certified prediction horizons and self-estimated rollout error; those entries should be
-verified against the arXiv record before camera-ready.
+distribution shifts and world-model architectures --- has not been reported.
 
 \section{Problem Formulation}
 \label{sec:problem}
@@ -525,12 +564,17 @@ signal still reports \emph{that} matters are harder; it stops reporting \emph{wh
 will fail. This is the direct explanation of \S\ref{sec:repair}: rank normalisation is exactly
 the operation that cannot help here.
 
-Two further observations. Predictive entropy moves in the \emph{wrong} direction, falling under
-shift ($\rho_D$ from $-0.394$ to $+0.001$ on D), which matches the attractor-collapse account
-proposed for latent-space uncertainty; ensemble spread does not, so that account is
-signal-specific rather than general. And no feature we measured is both stable and useful: the
-feature with the lowest rank instability has $\rho \approx 0$ everywhere
-(Figure~\ref{fig:featstab}).
+Two further observations. Predictive entropy moves in the \emph{wrong} direction under shift,
+its $\rho_D$ going from $-0.394$ in distribution to $+0.001$ on D, whereas ensemble spread
+retains its sign. \citet{berger2026biased} report a related but distinct effect: uncertainty
+\emph{declining along} an extended latent rollout as it is drawn into well-modelled attractor
+regions. We measure across-distribution means and within-distribution rank correlations rather
+than the within-rollout trajectory of uncertainty, so our observations neither confirm nor
+contradict that account; establishing whether the two mechanisms coincide would require
+measuring uncertainty along the rollout, which we did not do. What our data do show is that the
+failure is not confined to one signal family: entropy and ensemble spread degrade differently,
+and no feature we measured is both stable and useful --- the feature with the lowest rank
+instability has $\rho \approx 0$ everywhere (Figure~\ref{fig:featstab}).
 
 That figure also explains the asymmetry of \S\ref{sec:asym}. One feature --- how far the agent
 can currently see unobstructed --- is \emph{useless} in distribution ($\rho = +0.004$) and

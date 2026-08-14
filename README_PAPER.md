@@ -3,7 +3,7 @@
 ```
 paper/
 ├── main.tex                     # manuscript
-├── references.bib               # 20 references
+├── references.bib               # 29 references, all primary-source verified
 ├── figures/                     # 8 vector PDFs, generated
 ├── tables/                      # 7 LaTeX tables, generated
 └── supplementary/
@@ -65,12 +65,9 @@ This is a substitute for, not a replacement of, a real compile.
 
 1. **Compile** with a TeX toolchain and fix any errors this checker cannot see (spacing,
    overfull boxes, float placement, page limit).
-2. **Verify the recent-preprint references.** `docs/phase0_literature.md` records a Phase-0
-   survey that includes several 2026 preprints on certified prediction horizons, trust
-   horizons, and self-estimated rollout error. Their bibliographic records were **not**
-   verified from the arXiv listing within this repository, so they are deliberately **absent**
-   from `references.bib`; `main.tex` points at the survey file instead of citing them. Verify
-   them against arXiv and add proper entries, or drop the pointer.
+2. **References are verified.** All nine recent preprints were checked against their arXiv
+   abstract pages (title, full author list, identifier, submission date) and are cited
+   properly; see `BIBLIOGRAPHY_AUDIT.md`. Nothing further is required here.
 3. **Check the page limit.** The manuscript currently runs long for a main track; §7
    (mechanistic analysis) and §5.7 (planning) compress most safely. Do not cut negative
    results — move them to the supplement with a forward reference if space demands it.
@@ -88,6 +85,7 @@ This is a substitute for, not a replacement of, a real compile.
 | `PREREGISTRATION*.md` | Five frozen protocols |
 | `DEVIATIONS.md` | Ten logged departures with timing relative to test evaluation |
 | `RESULTS.md` | Full results for all nine hypotheses |
+| `BIBLIOGRAPHY_AUDIT.md` | Primary-source verification of every reference; four claim corrections |
 
 Three numerical inconsistencies found in the original draft were fixed at the source (the
 table generator) rather than by editing prose: the out-of-distribution table cited a different

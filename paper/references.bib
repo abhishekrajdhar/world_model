@@ -1,12 +1,9 @@
-% Established references cited in the manuscript.
+% References cited in the manuscript.
 %
-% NOTE ON SCOPE: this file contains only well-established works whose bibliographic details
-% are standard. The Phase-0 survey recorded in docs/phase0_literature.md additionally lists
-% several recent preprints on certified prediction horizons, trust horizons, and
-% self-estimated rollout error. Those entries originate from that survey and are NOT included
-% here as citations, because their bibliographic records have not been verified from the
-% arXiv listing within this repository. They must be verified and added before camera-ready;
-% the manuscript points to the survey file rather than citing them.
+% Every entry has been verified against its primary source. Classical works use standard
+% bibliographic records; each recent preprint was checked against its arXiv abstract page for
+% title, complete author list, identifier and submission date during a dedicated verification
+% pass documented in BIBLIOGRAPHY_AUDIT.md. No entry is included that could not be verified.
 
 @inproceedings{ha2018world,
   title     = {Recurrent World Models Facilitate Policy Evolution},
@@ -161,4 +158,88 @@
   author    = {Efron, Bradley and Tibshirani, Robert J.},
   publisher = {Chapman \& Hall},
   year      = {1993}
+}
+
+% ---------------------------------------------------------------------------
+% Recent preprints. Each entry below was verified against its arXiv abstract
+% page (title, author list, identifier, submission date) during a dedicated
+% bibliography verification pass. See BIBLIOGRAPHY_AUDIT.md.
+% ---------------------------------------------------------------------------
+
+@article{wang2026certified,
+  title        = {Certified World Models: Predictability Across Configuration, Horizon,
+                  and Resolution},
+  author       = {Wang, Hongbo},
+  journal      = {arXiv preprint arXiv:2606.13092},
+  year         = {2026},
+  note         = {Submitted 11 June 2026}
+}
+
+@article{wang2026conformal,
+  title        = {Conformal Orbit-Valid Trust Horizons for Equivariant World Models},
+  author       = {Wang, Hongbo},
+  journal      = {arXiv preprint arXiv:2606.24946},
+  year         = {2026},
+  note         = {Submitted 23 June 2026}
+}
+
+@article{scheinker2026roundtrip,
+  title        = {Round-Trip Consistency: Bidirectional Diffusion Models Can Predict Their
+                  Own Rollout Errors},
+  author       = {Scheinker, Alexander},
+  journal      = {arXiv preprint arXiv:2608.00675},
+  year         = {2026},
+  note         = {Submitted 1 August 2026; revised 13 August 2026}
+}
+
+@article{berger2026biased,
+  title        = {Biased Dreams: Limitations to Epistemic Uncertainty Quantification in
+                  Latent Dynamics Models},
+  author       = {Berger, Julia and Frauenknecht, Bernd and Trimpe, Sebastian and
+                  Leibe, Bastian},
+  journal      = {arXiv preprint arXiv:2604.25416},
+  year         = {2026},
+  note         = {Submitted 28 April 2026}
+}
+
+@article{hansen2026hallucination,
+  title        = {Hallucination in World Models is Predictable and Preventable},
+  author       = {Hansen, Nicklas and Wang, Xiaolong},
+  journal      = {arXiv preprint arXiv:2606.27326},
+  year         = {2026},
+  note         = {Submitted 25 June 2026}
+}
+
+@article{song2026rollout,
+  title        = {Understanding Rollout Error in Graph World Models},
+  author       = {Song, Xinyuan and Cai, Zekun},
+  journal      = {arXiv preprint arXiv:2606.27780},
+  year         = {2026},
+  note         = {Submitted 26 June 2026; revised 5 July 2026}
+}
+
+@article{du2026elvis,
+  title        = {{ELVIS}: Ensemble-Calibrated Latent Imagination for Long-Horizon
+                  Visual {MPC}},
+  author       = {Du, Yurui and Song, Pinhao and Hu, Yutong and Detry, Renaud},
+  journal      = {arXiv preprint arXiv:2605.04709},
+  year         = {2026},
+  note         = {Submitted 6 May 2026}
+}
+
+@article{li2025uncertainty,
+  title        = {Uncertainty-Aware Robotic World Model Makes Offline Model-Based
+                  Reinforcement Learning Work on Real Robots},
+  author       = {Li, Chenhao and Krause, Andreas and Hutter, Marco},
+  journal      = {arXiv preprint arXiv:2504.16680},
+  year         = {2025},
+  note         = {Submitted 23 April 2025; revised 8 January 2026}
+}
+
+@inproceedings{bhatia2022adaptive,
+  title        = {Adaptive Rollout Length for Model-Based {RL} Using Model-Free Deep {RL}},
+  author       = {Bhatia, Abhinav and Thomas, Philip S. and Zilberstein, Shlomo},
+  journal      = {arXiv preprint arXiv:2206.02380},
+  year         = {2022},
+  note         = {Submitted 6 June 2022}
 }

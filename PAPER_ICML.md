@@ -63,18 +63,50 @@ is selective across shift types and architectures.
 
 ## 2. Related Work
 
-Latent dynamics models underpin modern model-based control (Ha & Schmidhuber, 2018; Hafner et
-al., 2019; 2020; 2021; 2023); we adopt the same recurrent state-space structure but study the
-horizon over which imagination is exact rather than control performance. Deep ensembles and
-their disagreement are the standard epistemic signal (Lakshminarayanan et al., 2017; Chua et
-al., 2018), establishing Claim A; we treat the best monotone map from such a scalar as a
-control to beat. Model-based RL truncates rollouts when uncertainty exceeds a threshold (Janner
-et al., 2019) — an *online* rule observing the rollout as it unfolds, included here as a
-baseline. Calibration (Guo et al., 2017), selective prediction (Geifman & El-Yaniv, 2017) and
-conformal methods (Angelopoulos & Bates, 2021) target when a prediction should be trusted; our
-quantity is a *depth* rather than a label, and the failure we document is a loss of ranking
-rather than of coverage. Degradation of uncertainty under shift is documented (Ovadia et al.,
-2019; Hendrycks & Gimpel, 2017); we add that here it inverts the safety-relevant direction.
+**World models.** Latent dynamics models underpin modern model-based control (Ha & Schmidhuber,
+2018; Hafner et al., 2019; 2020; 2021; 2023). We study the horizon over which imagination is
+exact rather than control performance.
+
+**Uncertainty in learned dynamics.** Deep ensembles and their disagreement are the standard
+epistemic signal (Lakshminarayanan et al., 2017; Chua et al., 2018); Li et al. (2025) propagate
+epistemic uncertainty through long autoregressive rollouts to make offline model-based RL work
+on real robots. These establish Claim A; we treat the best monotone map from such a scalar as a
+control to beat.
+
+**Adaptive rollout length.** Model-based RL truncates rollouts at an uncertainty threshold
+(Janner et al., 2019), and rollout length can be tuned online as a meta-level decision problem
+(Bhatia et al., 2022). ELVIS (Du et al., 2026) gates a time-varying λ via a UCB score from an
+ensemble of latent critics — this adapts the *value estimator*, not a predicted horizon.
+
+**Horizon certificates.** Wang (2026a) derives predictability certificates for equivariant
+latent world models from the finite-time Lyapunov spectrum. Wang (2026b) calibrates
+trust-horizon curves by split conformal prediction and transports them across a symmetry orbit,
+reporting a median certified-to-measured ratio of 0.67 and **zero anti-conservative violations**
+across stable audits. Both require known group symmetry and are orbit-level and worst-case.
+Ours is a learned per-state estimate with no symmetry assumption and no conservatism guarantee
+— the anti-conservative failure in §6.3 is precisely what a conformal construction excludes.
+
+**Self-estimated rollout error.** Scheinker (2026) uses forward-then-backward round-trip
+discrepancy in a bidirectional latent diffusion model as a self-supervised error proxy
+(Spearman 0.91–0.98) on magnetohydrodynamics, mixing layers and face video. It needs a model
+trained to run in both directions and an extra backward pass, and has no acting agent; our §6.2
+result puts us on the same side of the a-priori boundary at lower cost. Song & Cai (2026)
+explain rollout error post hoc in graph world models via a topology factor (spectral radius)
+and a model factor — model-level, not per-state.
+
+**Failure prediction and data coverage.** Berger et al. (2026) report that in RSSM latent
+rollouts ensemble disagreement captures local epistemic uncertainty but does not reflect error
+accumulated over long rollouts, because rollouts are drawn toward attractor regions where
+uncertainty declines. Hansen & Wang (2026) argue hallucination in large visual world models is
+predictable from coverage signals and preventable by coverage-aware collection — "inherently a
+data coverage issue". Our §6.5 result is convergent evidence from a different direction.
+
+**Calibration and shift.** Calibration (Guo et al., 2017), selective prediction (Geifman &
+El-Yaniv, 2017) and conformal methods (Angelopoulos & Bates, 2021) target when a prediction
+should be trusted; our quantity is a *depth* rather than a label and the failure is a loss of
+ranking rather than of coverage. Degradation of uncertainty under shift is documented (Ovadia
+et al., 2019; Hendrycks & Gimpel, 2017); we add that here it inverts the safety-relevant
+direction.
 
 ## 3. Problem Formulation
 
@@ -250,11 +282,14 @@ aggregate separation is retained — while `ρ_D` collapses from −0.446 to −
 −0.089. The signal still reports *that* matters are harder; it stops reporting *which states*
 will fail. That is the direct explanation of §6.4.
 
-Two further observations. Predictive entropy moves the *wrong* way, falling under shift (`ρ_D`
-−0.394 → +0.001 on D), matching the attractor-collapse account proposed for latent-space
-uncertainty; ensemble spread does not, so that account is signal-specific rather than general.
-And no measured feature is both stable and useful: the one with lowest rank instability has
-ρ ≈ 0 everywhere.
+Two further observations. Predictive entropy moves the *wrong* way under shift (`ρ_D` −0.394 →
++0.001 on D) whereas ensemble spread retains its sign. Berger et al. (2026) report a related
+but distinct effect — uncertainty *declining along* an extended rollout drawn into attractor
+regions. We measure across-distribution means and within-distribution rank correlations, not
+the within-rollout trajectory of uncertainty, so our observations neither confirm nor
+contradict that account. What our data do show is that the failure is not confined to one
+signal family, and that no measured feature is both stable and useful: the one with lowest rank
+instability has ρ ≈ 0 everywhere.
 
 This also explains §6.7. One feature — how far the agent can currently see unobstructed — is
 *useless* in distribution (+0.004) and *dominant* under geometric shift (+0.586, +0.566, +0.533
