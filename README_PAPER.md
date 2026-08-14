@@ -36,9 +36,15 @@ cd paper && pdflatex main && bibtex main && pdflatex main && pdflatex main
 it up automatically, so no edit is needed.
 
 **Build status:** both documents compile clean — **0 errors, 0 undefined references, 0
-undefined citations, 0 overfull boxes** in `main.tex`. Output is **9 pages** (8 pages of body,
-references beginning on page 9) plus a **4-page** supplement, which fits the ICML limit of 8
-pages excluding references.
+undefined citations, 0 overfull boxes**. Output is **10 pages** plus a **4-page** supplement.
+
+**Page limit:** the body fills 8 pages and spills roughly two lines of the Reproducibility
+statement onto page 9; references then run to page 10. This is measured against the *fallback*
+`article` class, **not** the ICML template — `icml2025.sty` sets different margins and leading,
+so pagination must be rechecked once it is dropped in. If it is still marginally over there,
+the Reproducibility statement is the natural thing to shorten or relocate (several ICML years
+exclude reproducibility/impact statements from the limit). Do not reclaim space by cutting
+negative results.
 
 ## Regenerate figures and tables
 
@@ -80,9 +86,9 @@ prose/table disagreement), so it is worth running alongside the build rather tha
 2. **References are verified.** All nine recent preprints were checked against their arXiv
    abstract pages (title, full author list, identifier, submission date) and are cited
    properly; see `BIBLIOGRAPHY_AUDIT.md`. Nothing further is required here.
-3. **Page limit is met** at 8 body pages, but with no slack. If the ICML style file changes
-   the layout, §7 (mechanistic analysis) and §6.8 (planning) compress most safely. Do not cut
-   negative results — move them to the supplement with a forward reference instead.
+3. **Recheck the page limit under `icml2025.sty`** (see Build status). §7 (mechanistic
+   analysis) and §6.8 (planning) compress most safely if space is needed. Do not cut negative
+   results — move them to the supplement with a forward reference instead.
 4. **Anonymise for double-blind review.** The manuscript now carries an author block
    (Abhishek Rajdhar Dubey, Independent Researcher). ICML review is double-blind, so this
    must be removed for submission and restored for camera-ready. The supplement's compute

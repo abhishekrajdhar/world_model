@@ -611,8 +611,8 @@ whether an analogue exists for pixel-based or continuous-control world models is
 upper tail of $\Hstar$ is unidentified; a larger $H_{\max}$ would settle this.
 
 \textbf{Effect size.} $R^2 = 0.318$: most variance in $\Hstar$ is unexplained, and the margin
-over the optimistic ceiling is about $1$ MAE against a target with s.d.\ $\approx 10.3$. The
-result is statistically robust and quantitatively modest.
+over the optimistic ceiling is about $1$ MAE against a target with s.d.\ $\approx 10.3$ ---
+statistically robust, quantitatively modest.
 
 \textbf{Architecture evidence is single-seed.} \S\ref{sec:arch} uses one seed and $K=3$ per
 architecture. It establishes that the phenomenon occurs without recurrence; it does not support
@@ -620,8 +620,8 @@ comparisons between architectures.
 
 \textbf{Few shift families, and a severity confound.} The asymmetry rests on four donors. Two
 configurations (observation noise at $15\%$ and $70\%$) failed a pre-registered validity gate
-because they barely degraded the model, so the noise-driven side is supported by two
-instruments rather than three. Donor severity and donor type covary.
+because they barely degraded the model, leaving two instruments on the noise-driven side. Donor
+severity and type covary.
 
 \textbf{Downstream utility untested.} The planning experiment was a weak test
 (\S\ref{sec:planning}); we make no claim that the monitor improves control.
@@ -634,10 +634,9 @@ reliability horizon of its imagined futures, but that monitor is distribution-de
 only partially transferable across architectures and shift types.
 
 The practical reading is uncomfortable for uncertainty-gated imagination. A monitor fitted where
-the model works will be most confident where the model fails, and the two obvious input-level
-corrections do not help, because the problem is that features stop \emph{ranking} states rather
-than that they are mis-scaled. What does help is exposure to failures --- but selectively, and
-less so when the world model is already strong under shift.
+the model works will be most confident where the model fails, and input-level corrections do not
+help, because features stop \emph{ranking} states rather than being mis-scaled. Exposure to
+failures does help --- selectively, and less so when the world model is already strong.
 
 This suggests reading reliability monitoring less as reading out an intrinsic property of
 uncertainty and more as a learned model of one's own failures, whose validity is inherited from
@@ -659,12 +658,11 @@ five were not; the negative results carry most of the content.
 
 \section*{Reproducibility}
 
-All decision rules, thresholds, splits and seeds were frozen before the corresponding
-evaluations in five pre-registration documents, with departures logged. Every number in this
-paper is emitted programmatically from stored result artifacts. Code, protocols, the deviation
-ledger and per-seed statistics accompany the submission; the appendix documents architectures,
-hyperparameters, feature definitions, the bootstrap procedure, censoring, and the two
-configurations rejected as invalid instruments.
+All thresholds, splits and seeds were frozen before the corresponding evaluations in five
+pre-registration documents, with departures logged, and every number here is emitted
+programmatically from stored artifacts. Code, protocols and per-seed statistics accompany the
+submission; the appendix documents architectures, hyperparameters, features, statistics,
+censoring and the rejected instruments.
 
 \bibliographystyle{plainnat}
 \bibliography{references}

@@ -47,50 +47,68 @@ def primary(seed):
 
 # ------------------------------------------------------------------ F1
 def fig_architecture():
-    fig = plt.figure(figsize=(7.0, 3.5))
-    gs = fig.add_gridspec(1, 2, width_ratios=[1.45, 1.0], wspace=0.12)
-    ax = fig.add_subplot(gs[0]); ax.axis("off"); ax.set_xlim(0, 1); ax.set_ylim(0, 1)
+    """Panel (a) auto-sizes every box to its rendered text extent, so labels can never
+    overflow their frame regardless of font metrics."""
+    fig = plt.figure(figsize=(7.2, 3.45))
+    gs = fig.add_gridspec(1, 2, width_ratios=[1.55, 1.0], wspace=0.10)
+    ax = fig.add_subplot(gs[0]); ax.axis("off")
+    ax.set_xlim(0, 1); ax.set_ylim(-0.075, 1.02)   # headroom for the bottom row
+    fig.canvas.draw()
+    rend = fig.canvas.get_renderer()
 
-    def box(x, y, w, h, txt, fc="white", ec=C["dark"], fs=6.8, lw=0.8, ls="-"):
-        ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.006",
-                                    fc=fc, ec=ec, lw=lw, linestyle=ls, zorder=2))
-        ax.text(x + w / 2, y + h / 2, txt, ha="center", va="center", fontsize=fs, zorder=3)
+    def box(cx, cy, txt, fc="white", ec=C["dark"], fs=6.6, lw=0.8, ls="-",
+            padx=0.028, pady=0.026):
+        t = ax.text(cx, cy, txt, ha="center", va="center", fontsize=fs, zorder=4)
+        bb = t.get_window_extent(renderer=rend).transformed(ax.transData.inverted())
+        w, h = bb.width + 2 * padx, bb.height + 2 * pady
+        ax.add_patch(FancyBboxPatch((cx - w / 2, cy - h / 2), w, h,
+                                    boxstyle="round,pad=0.004", fc=fc, ec=ec, lw=lw,
+                                    linestyle=ls, zorder=3))
+        return dict(cx=cx, cy=cy, w=w, h=h)
 
-    def arrow(x1, y1, x2, y2, c=C["grey"], ls="-"):
-        ax.add_patch(FancyArrowPatch((x1, y1), (x2, y2), arrowstyle="-|>", mutation_scale=7,
-                                     lw=0.7, color=c, linestyle=ls, zorder=1))
+    def vdown(a, b, c=C["grey"], ls="-"):
+        ax.add_patch(FancyArrowPatch((a["cx"], a["cy"] - a["h"] / 2),
+                                     (b["cx"], b["cy"] + b["h"] / 2),
+                                     arrowstyle="-|>", mutation_scale=7, lw=0.7,
+                                     color=c, linestyle=ls, zorder=2))
 
-    box(.06, .86, .30, .085, "observation $o_t$  (5$\\times$5 egocentric)")
-    box(.06, .74, .30, .075, "encoder", fc="#EEF4FA")
-    box(.06, .615, .30, .085, "belief state  $h_t, z_t$", fc="#EEF4FA")
-    arrow(.21, .86, .21, .818); arrow(.21, .74, .21, .703)
+    CX = 0.615                      # main column centre
+    ys = [0.960, 0.840, 0.720, 0.585, 0.450, 0.330, 0.200, 0.062]
 
-    box(.40, .615, .175, .085, "posterior\n$q(z_t\\mid h_t, e_t)$", fc="#F7F7F7", fs=6.2)
-    box(.60, .615, .175, .085, "prior\n$p(z_t\\mid h_t)$", fc="#F7F7F7", fs=6.2)
-    arrow(.36, .6575, .40, .6575); arrow(.575, .6575, .60, .6575)
+    obs = box(CX, ys[0], "observation $o_t$   (5$\\times$5 egocentric)")
+    enc = box(CX, ys[1], "encoder", fc="#EEF4FA")
+    bel = box(CX, ys[2], "belief state   $h_t,\\; z_t$", fc="#EEF4FA")
+    vdown(obs, enc); vdown(enc, bel)
 
-    box(.34, .455, .44, .085, "dynamics  $z_{t+1}=f_\\theta(z_t,a_t)$", fc="#EEF4FA")
-    arrow(.6875, .615, .6875, .543); arrow(.4875, .615, .4875, .543)
-    ax.text(.80, .50, "actions\n$a_{t:t+H}$", fontsize=6.2, ha="left", va="center",
-            color=C["alt"])
-    arrow(.98, .497, .79, .497, c=C["alt"])
+    post = box(CX - 0.175, ys[3], "posterior\n$q(z_t\\mid h_t, e_t)$", fc="#F7F7F7", fs=6.0)
+    pri = box(CX + 0.175, ys[3], "prior\n$p(z_t\\mid h_t)$", fc="#F7F7F7", fs=6.0)
+    vdown(bel, post); vdown(bel, pri)
 
-    box(.34, .315, .44, .085, "imagined rollout  $\\hat\\tau_{t:t+H}$", fc="#FDF0E6")
-    arrow(.56, .455, .56, .403)
-    box(.34, .175, .44, .085, "rollout diagnostics  $x_t$\n(disagreement, entropy, spread)",
-        fc="#FDF0E6", fs=6.2)
-    arrow(.56, .315, .56, .263)
-    box(.34, .035, .44, .085, "monitor  $\\hat H_t = g_\\phi(x_t)$", fc="#E8F4EF", lw=1.1)
-    arrow(.56, .175, .56, .123)
-    ax.text(.80, .078, "predicted\nhorizon $\\hat H_t$", fontsize=6.2, va="center")
+    dyn = box(CX, ys[4], "dynamics   $z_{t+1}=f_\\theta(z_t, a_t)$", fc="#EEF4FA")
+    vdown(post, dyn); vdown(pri, dyn)
 
-    # ground truth branch
-    box(.06, .175, .22, .085, "environment\n$s_{t+1..t+H}$", fc="#F2F2F2", ls="--", fs=6.2)
-    box(.06, .035, .22, .085, "true horizon $H^*$", fc="#F2F2F2", ls="--", fs=6.5)
-    arrow(.17, .175, .17, .123, ls="--")
-    ax.annotate("", xy=(.335, .0775), xytext=(.283, .0775),
+    # action conditioning enters from the free space on the left
+    ax.text(0.075, ys[4] + 0.035, "actions", fontsize=6.2, color=C["alt"], ha="left")
+    ax.text(0.075, ys[4] - 0.028, "$a_{t:t+H}$", fontsize=6.2, color=C["alt"], ha="left")
+    ax.add_patch(FancyArrowPatch((0.205, ys[4]), (dyn["cx"] - dyn["w"] / 2 - 0.004, ys[4]),
+                                 arrowstyle="-|>", mutation_scale=7, lw=0.7,
+                                 color=C["alt"], zorder=2))
+
+    rol = box(CX, ys[5], "imagined rollout   $\\hat\\tau_{t:t+H}$", fc="#FDF0E6")
+    dia = box(CX, ys[6], "rollout diagnostics   $x_t$\n(disagreement, entropy, spread)",
+              fc="#FDF0E6", fs=6.0)
+    mon = box(CX, ys[7], "monitor   $\\hat H_t = g_\\phi(x_t)$", fc="#E8F4EF", lw=1.2)
+    vdown(dyn, rol); vdown(rol, dia); vdown(dia, mon)
+
+    # ground-truth branch (dashed: available only at evaluation time)
+    env = box(0.155, ys[6], "environment\n$s_{t+1..t+H}$", fc="#F2F2F2", ls="--", fs=6.0)
+    tru = box(0.155, ys[7], "true horizon $H^*$", fc="#F2F2F2", ls="--", fs=6.0)
+    vdown(env, tru, ls="--")
+    ax.annotate("", xy=(mon["cx"] - mon["w"] / 2 - 0.006, ys[7]),
+                xytext=(tru["cx"] + tru["w"] / 2 + 0.006, ys[7]),
                 arrowprops=dict(arrowstyle="<->", lw=0.7, color=C["grey"], ls=":"))
-    ax.text(.31, .012, "compared", fontsize=5.6, ha="center", color=C["grey"])
+    ax.text((tru["cx"] + tru["w"] / 2 + mon["cx"] - mon["w"] / 2) / 2, ys[7] - 0.048,
+            "compared", fontsize=5.6, ha="center", color=C["grey"])
     ax.set_title("(a) World model, imagined rollout, and the monitor", fontsize=8.5, loc="left")
 
     # ---- right: three architectures ----
