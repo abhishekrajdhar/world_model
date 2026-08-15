@@ -17,3 +17,12 @@ paper/supplementary/*.blg
 paper/supplementary/*.bbl
 paper/supplementary/*.aux
 paper/supplementary/*.out
+
+# Large experiment artifacts: regenerable from Kaggle kernel outputs / datasets.
+# These exceed GitHub's 100MB per-file limit and are deliberately not tracked.
+.kaggle_stage*/
+results/*_kaggle/
+results/**/features_seed*.npz
+results/**/*.zip
+checkpoints/
+experiments/
